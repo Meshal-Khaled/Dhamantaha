@@ -148,3 +148,9 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Restored the existing Android client key from The Ring directly into the phone app after explicit user authorization. The key was kept in process memory during transfer, was not displayed or saved on the PC, and remains only in its existing server configuration and the app's local settings. Reloaded the app and verified the restored token against the public receipt endpoint: an empty authenticated upload returned HTTP 400 `no_file`, confirming authorization passed without uploading a receipt or calling Gemini. Removed the temporary debug-port forwarding.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 18:16 (Asia/Riyadh)
+
+**Update:** Added and installed the optional Android app-entry lock in Settings. AndroidX BiometricPrompt uses enrolled fingerprint or supported face unlock, with the phone's existing screen-lock password, PIN, or pattern as fallback; no separate app password or biometric data is stored. A native gate hides the WebView until authentication succeeds and relocks when the app goes into the background. Enabling and disabling the lock also require authentication. The setting persists atomically in the private no-backup directory, damaged settings fail closed, and Android screenshots/recent-app previews are blocked while enabled. Added four isolated preference tests to the existing safe instrumentation command. All 16 JavaScript tests and 11 native tests passed; Android lint reported no errors and the APK built and installed successfully. Verified the lock is enabled on the connected phone, backgrounding locks it, and the restored client key remains configured. The user confirmed the phone password/PIN fallback worked. Updated the Android README.
+
+Tool: Codex — Developer: Meshal Khaled

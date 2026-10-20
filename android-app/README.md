@@ -12,6 +12,12 @@ React + Vite packaged with Capacitor. Photograph or pick a receipt (photo or PDF
 - Browser previews use IndexedDB (separate metadata and original Blob stores). Browser storage can be cleared or evicted; this is separate from the Android SQLite wallet.
 - Capacitor bridge logging is disabled so file bytes and analysis passed to native storage do not enter device logs. The in-app debug panel still shows request metadata.
 
+## Biometric app lock
+
+In **Settings → App lock**, enable **Require unlock to open app** and confirm the Android authentication prompt. The app uses the phone's enrolled fingerprint or supported face unlock, with its existing screen-lock password, PIN, or pattern as fallback. There is no separate Dhamantaha password, and the app never receives or saves biometric data or the phone's screen-lock credential.
+
+The native gate hides the WebView on a locked launch and after the app goes into the background. Returning from the camera, file picker, or original-file viewer also requires unlocking again. Cancelling authentication leaves the app locked with an Unlock button. Turning app lock on or off requires successful Android authentication. Configure a phone screen lock first; if no biometric is available, the phone credential still works. The setting is off until enabled and is saved in Android's private no-backup directory. When enabled, Android screenshots and recent-app previews are blocked. This is an app-entry lock; receipt storage is unchanged.
+
 ## Run it on a phone
 
 Needs Node 22+, JDK 21 (found automatically in `~/.jdks` or Android Studio's `jbr`), the Android SDK, and a phone with USB debugging on.
@@ -33,10 +39,12 @@ The **Show debug** panel lists request metadata (status, duration, `requestId`).
 - `src/api.js` — the routing to The Ring: health check, upload, error handling (tested in `test/`)
 - `src/App.jsx` — camera/file picking, send, result and debug views
 - `src/receipt-wallet.js` — save/list/open/delete and analysis persistence; native bridge and browser IndexedDB adapters
+- `src/AppLockSettings.jsx` — Android app-lock toggle and authentication errors
+- `android/app/src/main/java/com/dhamantaha/app/AppLock.java` — native lock screen, Android biometric prompt, device-credential fallback and lifecycle handling
 - `android/app/src/main/java/com/dhamantaha/app/ReceiptStore.java` — SQLite schema, original files and crash recovery
 - `android/app/src/main/java/com/dhamantaha/app/ReceiptWalletPlugin.java` — Capacitor bridge and Android original-file viewer
 - `android/app/src/androidTest/java/com/dhamantaha/app/ReceiptStoreTest.java` — native persistence, byte integrity, deletion, rollback and pagination tests
 - `scripts/android.js` — build, install and log helpers
 - `android/` — the generated Capacitor Android project
 
-Run `npm test` and `npm run build` for JavaScript checks. With a device connected, run `npm run android:test-storage` for the isolated native storage tests. It installs with `adb install -r` and invokes instrumentation directly, preserving app data. Tests use a unique temporary directory. Avoid Gradle's `connectedDebugAndroidTest` task on a phone with saved data: that task can uninstall the target app afterward.
+Run `npm test` and `npm run build` for JavaScript checks. With a device connected, run `npm run android:test-storage` for the isolated native receipt-storage and app-lock preference tests. It installs with `adb install -r` and invokes instrumentation directly, preserving app data. Tests use unique temporary directories. Avoid Gradle's `connectedDebugAndroidTest` task on a phone with saved data: that task can uninstall the target app afterward.

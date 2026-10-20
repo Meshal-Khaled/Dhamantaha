@@ -57,3 +57,7 @@ footer { margin-top: 20px; }
 .delete-confirm { border-top: 1px solid var(--line); margin-top: 16px; font-size: .9rem; }
 .danger { background: var(--bad); color: #fff; flex: 1; }
 .storage-status { margin-top: 12px; }
+.app-lock-settings { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px; }
+.lock-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; color: var(--ink); font-size: .95rem; padding: 10px 0; }
+.lock-toggle input { width: 24px; height: 24px; flex-shrink: 0; accent-color: var(--teal); }
+.lock-error { color: var(--bad); font-size: .9rem; }

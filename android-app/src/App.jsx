@@ -5,6 +5,7 @@ import { analyzeReceipt, ApiError, checkFileAgainstLimits, checkHealth, describe
 import { countdownLabel, daysUntil } from './countdown.js';
 import { loadSettings, saveSettings } from './settings.js';
 import { PAGE_SIZE, receiptWallet } from './receipt-wallet.js';
+import AppLockSettings from './AppLockSettings.jsx';
 
 const native = Capacitor.isNativePlatform();
 
@@ -337,6 +338,7 @@ function SettingsPanel({ settings, onSave }) {
         <input type="password" value={draft.clientKey} onChange={(e) => setDraft({ ...draft, clientKey: e.target.value })} autoCapitalize="none" autoCorrect="off" />
       </label>
       <button className="primary" onClick={() => onSave({ baseUrl: draft.baseUrl.trim(), clientKey: draft.clientKey.trim() })}>Save</button>
+      <AppLockSettings />
     </section>
   );
 }
