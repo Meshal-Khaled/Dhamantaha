@@ -1,6 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, CircleCheck, FileText, Phone, Plus, ReceiptText, Search, ShieldCheck, ShieldQuestion, Undo2 } from 'lucide-react';
-import { cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary } from './wallet-view.js';
+import { cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary, warrantyTone } from './wallet-view.js';
 import { fieldLabel, formatDate, formatMoney, formatNumber } from './format.js';
 import AppLockSettings from './AppLockSettings.jsx';
 
@@ -25,7 +25,7 @@ export function Deadline({ date, days, arabic }) {
 
 function WarrantyTimer({ entry, arabic, label }) {
   const t = translate(arabic);
-  const status = coverageClass(entry.warrantyDays);
+  const status = warrantyTone(entry.warrantyDays, entry.warrantyProgress);
   return <div className={`warranty-timer ${status}`}>
     <div className="warranty-heading"><span>{label || t('Warranty', 'الضمان')} <Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></span><ShieldCheck aria-hidden="true" size={17} /></div>
     <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${formatNumber(entry.warrantyProgress, arabic)}%`}>

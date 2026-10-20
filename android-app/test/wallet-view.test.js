@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { endDate, products, walletSummary, editAnalysis, warrantyProgress, receiptCards, linePrice, itemName, cardSearchText } from '../src/wallet-view.js';
+import { endDate, products, walletSummary, editAnalysis, warrantyProgress, warrantyTone, receiptCards, linePrice, itemName, cardSearchText } from '../src/wallet-view.js';
 
 test('policy dates clamp month ends and leap years, and reject invalid input', () => {
   assert.equal(endDate('2026-01-31', 1, 'months'), '2026-02-28');
@@ -74,6 +74,21 @@ test('warranty progress shrinks with remaining days and clamps at the start and 
   assert.equal(warrantyProgress('2026-10-01', null), null);
   assert.equal(warrantyProgress('2026-02-30', '2026-10-21'), null);
   assert.equal(warrantyProgress('2026-10-21', '2026-10-21'), 0);
+});
+
+test('warranty colors reflect the remaining fraction and imminent deadlines', () => {
+  assert.equal(warrantyTone(324, 89), 'healthy');
+  assert.equal(warrantyTone(135, 37), 'warning');
+  assert.equal(warrantyTone(53, 7.3), 'critical');
+  assert.equal(warrantyTone(100, 50), 'warning');
+  assert.equal(warrantyTone(100, 20), 'critical');
+  assert.equal(warrantyTone(30, 90), 'warning');
+  assert.equal(warrantyTone(7, 90), 'critical');
+  assert.equal(warrantyTone(0, 0), 'critical');
+  assert.equal(warrantyTone(-1, 0), 'ended');
+  assert.equal(warrantyTone(null, null), 'unknown');
+  assert.equal(warrantyTone(NaN, 50), 'unknown');
+  assert.equal(warrantyTone(100, null), 'healthy');
 });
 
 test('a receipt with several items is one card that leads with the next warranty to end', () => {

@@ -25,6 +25,15 @@ export function warrantyProgress(purchaseDate, expirationDate, today = new Date(
   return Math.round(Math.max(0, Math.min(1, remaining / total)) * 1000) / 10;
 }
 
+// Match the remaining bar to its urgency, including short policies near expiry.
+export function warrantyTone(days, percent) {
+  if (!Number.isFinite(days)) return 'unknown';
+  if (days < 0) return 'ended';
+  if (days <= 7 || (Number.isFinite(percent) && percent <= 20)) return 'critical';
+  if (days <= 30 || (Number.isFinite(percent) && percent <= 50)) return 'warning';
+  return 'healthy';
+}
+
 const isAmount = (value) => typeof value === 'number' && Number.isFinite(value);
 const cents = (value) => Math.round(value * 100) / 100;
 
