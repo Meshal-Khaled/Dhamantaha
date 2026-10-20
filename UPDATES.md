@@ -154,3 +154,9 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Added and installed the optional Android app-entry lock in Settings. AndroidX BiometricPrompt uses enrolled fingerprint or supported face unlock, with the phone's existing screen-lock password, PIN, or pattern as fallback; no separate app password or biometric data is stored. A native gate hides the WebView until authentication succeeds and relocks when the app goes into the background. Enabling and disabling the lock also require authentication. The setting persists atomically in the private no-backup directory, damaged settings fail closed, and Android screenshots/recent-app previews are blocked while enabled. Added four isolated preference tests to the existing safe instrumentation command. All 16 JavaScript tests and 11 native tests passed; Android lint reported no errors and the APK built and installed successfully. Verified the lock is enabled on the connected phone, backgrounding locks it, and the restored client key remains configured. The user confirmed the phone password/PIN fallback worked. Updated the Android README.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 18:18 (Asia/Riyadh)
+
+**Update:** Test of the automatic publish. This entry was added on a throwaway branch (docs-sync-action-test) and should reach main through the "Sync shared docs to main" GitHub Action, without anyone running the script.
+
+Tool: Claude Code — Developer: Meshal Khaled
