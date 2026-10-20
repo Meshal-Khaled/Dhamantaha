@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_lock_title">Your warranty wallet is locked</string>
+    <string name="app_lock_message">Use your fingerprint, supported face unlock, or phone password/PIN.</string>
+    <string name="app_lock_unlock">Unlock</string>
+    <string name="app_lock_security_settings">Phone security settings</string>
+</resources>
