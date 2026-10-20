@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { LogRewritten, report, SHARED_FILES, sharedFilesFor, SyncConflict, syncDocs } from './docs-sync.mjs';
+import { LogRewritten, report, SHARED_FILES, sharedFilesFor, SyncConflict, syncDocs, UncommittedDoc } from './docs-sync.mjs';
 
 // Every repository here is a throwaway under the system temp folder. Nothing touches a real remote,
 // and the machine's own git configuration is ignored so the results do not depend on it.
@@ -31,7 +31,7 @@ const headings = (text) => [...text.matchAll(/^## 2026-10-20 (\d\d:\d\d)/gm)].ma
 
 let counter = 0;
 /** A bare origin with main, plus clones on their own branches, like Meshal's and the friend's folders. */
-function team({ log = HEADER + entry('10:00', 'first'), eol = '\n' } = {}) {
+function team({ log = HEADER + entry('10:00', 'first'), eol = '\n', plan = 'Plan\nline two\nline three\n' } = {}) {
   const dir = join(sandbox, `team-${(counter += 1)}`);
   mkdirSync(dir);
   const origin = join(dir, 'origin.git');
@@ -41,7 +41,7 @@ function team({ log = HEADER + entry('10:00', 'first'), eol = '\n' } = {}) {
   sh(dir, 'clone', '-q', origin, seed);
   sh(seed, 'config', 'core.autocrlf', 'false');
   writeFileSync(join(seed, 'UPDATES.md'), log.replace(/\n/g, eol));
-  writeFileSync(join(seed, 'Meshal-Plan.md'), ['Plan', 'line two', 'line three', ''].join(eol));
+  writeFileSync(join(seed, 'Meshal-Plan.md'), plan.replace(/\n/g, eol));
   sh(seed, 'add', '.');
   sh(seed, 'commit', '-q', '-m', 'docs');
   sh(seed, 'push', '-q', 'origin', 'HEAD:main');
@@ -134,6 +134,7 @@ describe('docs-sync', () => {
     sh(t.seed, 'commit', '-q', '-am', 'edit plan');
     sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
     writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two CHANGED HERE\nline three\n');
+    sh(t.infra, 'commit', '-q', '-am', 'edit plan here');
     const before = t.mainSha();
 
     assert.throws(() => syncDocs({ cwd: t.infra, mode: 'push' }), (error) => error instanceof SyncConflict && error.file === 'Meshal-Plan.md');
@@ -147,6 +148,7 @@ describe('docs-sync', () => {
     sh(t.seed, 'commit', '-q', '-am', 'edit plan');
     sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
     writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two\nline three EDITED HERE\n');
+    sh(t.infra, 'commit', '-q', '-am', 'edit plan here');
     syncDocs({ cwd: t.infra, mode: 'push' });
 
     assert.equal(t.onMain('Meshal-Plan.md'), 'Plan EDITED ON MAIN\nline two\nline three EDITED HERE\n');
@@ -209,6 +211,92 @@ describe('docs-sync', () => {
     assert.equal(t.onMain('UPDATES.md').includes('\r'), false, 'main keeps its own line endings');
   });
 
+  it('refuses to publish a plan with uncommitted edits, and says what to do', () => {
+    const t = team();
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two EDITED\nline three\n');
+    const before = t.mainSha();
+    assert.throws(
+      () => syncDocs({ cwd: t.infra, mode: 'push' }),
+      (error) => error instanceof UncommittedDoc && error.file === 'Meshal-Plan.md' && /git commit/.test(error.message),
+    );
+    assert.equal(t.mainSha(), before);
+    // The log is the exception: new entries can be published before they are committed.
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'uncommitted entry'));
+    sh(t.infra, 'checkout', '--', 'Meshal-Plan.md');
+    assert.ok(syncDocs({ cwd: t.infra, mode: 'push' }).pushed);
+  });
+
+  it('records the branch commit it published in a Docs-From line on main', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    syncDocs({ cwd: t.infra, mode: 'push' });
+    const message = sh(t.origin, 'log', '-1', '--format=%B', 'main');
+    assert.match(message, new RegExp(`\\n\\nDocs-From: ${sh(t.infra, 'rev-parse', 'HEAD').trim()}\\n*$`));
+  });
+
+  it('lets one branch keep editing and publishing the same line of a plan', () => {
+    const t = team();
+    for (const word of ['one', 'two', 'three']) {
+      writeFileSync(join(t.infra, 'Meshal-Plan.md'), `Plan\nline two ${word}\nline three\n`);
+      sh(t.infra, 'commit', '-q', '-am', `plan ${word}`);
+      syncDocs({ cwd: t.infra, mode: 'push' });
+      assert.equal(t.onMain('Meshal-Plan.md'), `Plan\nline two ${word}\nline three\n`);
+    }
+  });
+
+  it('keeps going after a publish that was not committed first, as older versions of the script allowed', () => {
+    const t = team();
+    // main already has a version of the plan that this branch also committed (no Docs-From line on it)
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two V1\nline three\n');
+    sh(t.infra, 'commit', '-q', '-am', 'plan v1');
+    sh(t.seed, 'pull', '-q', 'origin', 'main');
+    writeFileSync(join(t.seed, 'Meshal-Plan.md'), 'Plan\nline two V1\nline three\n');
+    sh(t.seed, 'commit', '-q', '-am', 'v1 published by hand');
+    sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two V2\nline three\n');
+    sh(t.infra, 'commit', '-q', '-am', 'plan v2');
+
+    syncDocs({ cwd: t.infra, mode: 'push' });
+    assert.equal(t.onMain('Meshal-Plan.md'), 'Plan\nline two V2\nline three\n');
+  });
+
+  it('merges edits made in two places after an earlier publish, using the last published version as the start', () => {
+    // Lines are kept apart by unchanged lines: git treats edits to neighbouring lines as a conflict.
+    const t = team({ plan: 'p1\np2\np3\np4\np5\n' });
+    const plan = (one, three, five) => `${one}\np2\n${three}\np4\n${five}\n`;
+    // infra edits line one and publishes
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), plan('ONE by infra', 'p3', 'p5'));
+    sh(t.infra, 'commit', '-q', '-am', 'infra edit');
+    syncDocs({ cwd: t.infra, mode: 'push' });
+    // the friend, who has not seen that, edits line five and publishes
+    writeFileSync(join(t.front, 'Meshal-Plan.md'), plan('p1', 'p3', 'FIVE by friend'));
+    sh(t.front, 'commit', '-q', '-am', 'friend edit');
+    syncDocs({ cwd: t.front, mode: 'push' });
+    assert.equal(t.onMain('Meshal-Plan.md'), plan('ONE by infra', 'p3', 'FIVE by friend'));
+    // infra, still without the friend's edit, changes line three and publishes again: nothing is lost
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), plan('ONE by infra', 'THREE by infra', 'p5'));
+    sh(t.infra, 'commit', '-q', '-am', 'infra edit again');
+    syncDocs({ cwd: t.infra, mode: 'push' });
+
+    const all = plan('ONE by infra', 'THREE by infra', 'FIVE by friend');
+    assert.equal(t.onMain('Meshal-Plan.md'), all);
+    assert.equal(readFileSync(join(t.infra, 'Meshal-Plan.md'), 'utf8'), all);
+  });
+
+  it('takes main\'s newer plan when this copy is just an old version of it', () => {
+    const t = team();
+    sh(t.seed, 'pull', '-q', 'origin', 'main');
+    writeFileSync(join(t.seed, 'Meshal-Plan.md'), 'Plan\nline two NEWER\nline three\n');
+    sh(t.seed, 'commit', '-q', '-am', 'newer plan');
+    sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+    const before = t.mainSha();
+
+    const result = syncDocs({ cwd: t.front, mode: 'push' }); // the friend's copy is still the original
+    assert.equal(result.forMain.length, 0);
+    assert.equal(t.mainSha(), before);
+    assert.equal(readFileSync(join(t.front, 'Meshal-Plan.md'), 'utf8'), 'Plan\nline two NEWER\nline three\n');
+  });
+
   it('reports in sync once everything is published', () => {
     const t = team();
     t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
@@ -248,6 +336,8 @@ describe('GitHub Action', () => {
     const t = team();
     mkdirSync(join(t.infra, '.github', 'workflows'), { recursive: true });
     writeFileSync(join(t.infra, '.github', 'workflows', 'sync-docs.yml'), 'name: changed\n');
+    sh(t.infra, 'add', '.github');
+    sh(t.infra, 'commit', '-q', '-m', 'workflow');
     t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
 
     const inCi = runScript(t.infra, { GITHUB_ACTIONS: 'true' });

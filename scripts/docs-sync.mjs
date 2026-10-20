@@ -13,6 +13,10 @@
 // sides are kept and two people adding entries at the same time never conflict. The other files are merged
 // normally; if two people changed the same lines, it stops and names the file to fix by hand. It also refuses
 // a log that changes or removes entries main already has, because the log is append-only.
+//
+// To merge a doc that was edited in two places it needs the version both sides last had in common. That is
+// where the branch left main, or the branch commit named in the "Docs-From:" line of this script's last
+// commit on main. So every doc other than the log must be committed before it is published.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -54,6 +58,14 @@ export class LogRewritten extends SyncConflict {
         `Restore the earlier entries (for example "git checkout origin/main -- ${file}", then add your entry again) and run this again.`,
     );
     this.name = 'LogRewritten';
+  }
+}
+
+/** Merging a doc edited in two places needs a committed starting point, so unpublished edits must be committed first. */
+export class UncommittedDoc extends SyncConflict {
+  constructor(file) {
+    super(file, `${file} has changes that are not committed yet. Commit it ("git add ${file}", then "git commit"), then run this again.`);
+    this.name = 'UncommittedDoc';
   }
 }
 
@@ -129,8 +141,42 @@ function mergeFile(name, parts) {
   return merged;
 }
 
+const isAncestor = (root, older, newer) => git(root, ['merge-base', '--is-ancestor', older, newer], { allowFailure: true }).status === 0;
+
+/** Commits this script made on main, newest first, with the branch commit whose docs each one published. */
+function publishedCommits(root) {
+  const log = git(root, ['log', '-n', '300', '--format=%H%x1f%(trailers:key=Docs-From,valueonly)%x1e', 'origin/main'], { allowFailure: true });
+  if (log.status !== 0) return [];
+  return log.stdout
+    .split('\x1e')
+    .map((record) => record.trim().split('\x1f'))
+    .map(([commit, from]) => ({ commit, from: (from ?? '').trim().split(/\s+/)[0] }))
+    .filter((entry) => /^[0-9a-f]{40}$/.test(entry.from));
+}
+
+/** The newest commit in this branch's history whose docs main also had: where it left main, or its last publish. */
+function chooseBase(root, published) {
+  const candidates = [];
+  const forkPoint = git(root, ['merge-base', 'HEAD', 'origin/main'], { allowFailure: true });
+  if (forkPoint.status === 0) candidates.push(forkPoint.stdout.trim());
+  const lastPublish = published.find((entry) => isAncestor(root, entry.from, 'HEAD'));
+  if (lastPublish) candidates.push(lastPublish.from);
+  let best = null;
+  for (const candidate of candidates) if (best === null || isAncestor(root, best, candidate)) best = candidate;
+  return best;
+}
+
+/** True if some recent commit reachable from `ref` had exactly this content for the file. */
+function historyHas(root, ref, name, text) {
+  const commits = git(root, ['log', '-n', '50', '--format=%H', ref, '--', name], { allowFailure: true }).stdout.split('\n').filter(Boolean);
+  return commits.some((commit) => {
+    const content = showFile(root, commit, name);
+    return content !== null && toLf(content) === text;
+  });
+}
+
 /** One commit on top of `parent` that changes only `changes`, built without touching any checkout. */
-function buildCommit(root, parent, changes, branch) {
+function buildCommit(root, parent, changes, branch, from) {
   const dir = mkdtempSync(join(tmpdir(), 'docs-index-'));
   const env = { GIT_INDEX_FILE: join(dir, 'index') };
   try {
@@ -145,7 +191,9 @@ function buildCommit(root, parent, changes, branch) {
     const names = changes.map((change) => change.name);
     const subject = names.length === 1 ? `docs: sync ${names[0]} from ${branch}` : `docs: sync shared docs from ${branch}`;
     const body = `Files: ${names.join(', ')}\nPublished with scripts/docs-sync.mjs.`;
-    return git(root, ['commit-tree', tree, '-p', parent, '-m', `${subject}\n\n${body}`]).stdout.trim();
+    // The trailer names the branch commit these docs came from; later runs use it to find the common starting point.
+    const trailer = from ? `\n\nDocs-From: ${from}` : '';
+    return git(root, ['commit-tree', tree, '-p', parent, '-m', `${subject}\n\n${body}${trailer}`]).stdout.trim();
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -166,12 +214,13 @@ function writeLocal(root, changes) {
 export function syncDocs({ cwd = process.cwd(), mode = 'check', files = sharedFilesFor(), beforePush } = {}) {
   const root = git(cwd, ['rev-parse', '--show-toplevel']).stdout.trim();
   const branch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim();
+  const head = git(root, ['rev-parse', 'HEAD'], { allowFailure: true });
+  const headSha = head.status === 0 ? head.stdout.trim() : null;
 
   for (let attempt = 1; ; attempt += 1) {
     const fetched = git(root, ['fetch', '--quiet', 'origin', 'main'], { allowFailure: true });
     if (fetched.status !== 0) throw new Error(`Could not fetch main from origin: ${fetched.stderr.trim()}`);
-    const baseRef = git(root, ['merge-base', 'HEAD', 'origin/main'], { allowFailure: true });
-    const base = baseRef.status === 0 ? baseRef.stdout.trim() : null;
+    const baseRef = chooseBase(root, publishedCommits(root));
 
     const plan = [];
     for (const name of files) {
@@ -179,8 +228,17 @@ export function syncDocs({ cwd = process.cwd(), mode = 'check', files = sharedFi
       const rawTheirs = showFile(root, 'origin/main', name);
       const mine = rawMine === null ? null : toLf(rawMine);
       const theirs = rawTheirs === null ? null : toLf(rawTheirs);
-      const rawBase = showFile(root, base, name);
-      const merged = mergeFile(name, { base: rawBase === null ? null : toLf(rawBase), mine, theirs });
+      const rawBase = showFile(root, baseRef, name);
+      let base = rawBase === null ? null : toLf(rawBase);
+      if (!LOG_FILES.has(name) && mine !== null && theirs !== null && mine !== theirs) {
+        // One side is simply a version the other already had: main has not moved on (this copy is ahead),
+        // or this copy is an old version of main's (it is behind). That is not a conflict, whatever the
+        // history says. If both are true it is unclear which is newer, so the usual merge decides.
+        const ahead = historyHas(root, 'HEAD', name, theirs);
+        const behind = historyHas(root, 'origin/main', name, mine);
+        if (ahead !== behind) base = ahead ? theirs : mine;
+      }
+      const merged = mergeFile(name, { base, mine, theirs });
       if (merged === null) continue;
       const entry = { name, mine, theirs, merged };
       entry.needsMain = merged !== theirs;
@@ -199,7 +257,14 @@ export function syncDocs({ cwd = process.cwd(), mode = 'check', files = sharedFi
       return result;
     }
 
-    const commit = buildCommit(root, 'origin/main', forMain, branch);
+    // Every published doc except the log must be committed, so the next merge knows where this copy started.
+    for (const entry of forMain) {
+      if (LOG_FILES.has(entry.name) || entry.mine === null) continue;
+      const committed = showFile(root, 'HEAD', entry.name);
+      if (committed === null || toLf(committed) !== entry.mine) throw new UncommittedDoc(entry.name);
+    }
+
+    const commit = buildCommit(root, 'origin/main', forMain, branch, headSha);
     beforePush?.();
     const push = git(root, ['push', '--quiet', 'origin', `${commit}:refs/heads/main`], { allowFailure: true });
     if (push.status === 0) {
