@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { ArrowLeft, Camera, Check, CircleCheck, CirclePlus, Clock3, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
 import { HomeScreen, ReceiptsScreen, SettingsScreen, ResultView, ReceiptEditor, translate } from './WalletScreens.jsx';
 import brand from '../resources/app-icon.png';
 import { describeError } from './api.js';
