@@ -83,6 +83,12 @@ Tool: Codex — Developer: Meshal Khaled
 
 Tool: Claude Code — Developer: Meshal Khaled
 
+## 2026-10-20 16:24 (Asia/Riyadh)
+
+**Update:** Created a Dhamantaha brand logo and standalone app symbol in `assets/brand/` using the built-in imagegen tool. The teal receipt, protective shield and checkmark reflect the warranty-wallet concept and existing Android UI. The primary logo includes Arabic and English names. Verified both PNGs have alpha transparency and saved the generation prompts in `assets/brand/README.md`.
+
+Tool: Codex — Developer: Meshal Khaled
+
 ## 2026-10-20 17:05 (Asia/Riyadh)
 
 **Update:** Moved receipt debugging from the phone to the Monitoring page of the dashboard. A new **Debug captures** card has a Capture switch (off by default). While on, each analysis request shows what the app sent (file name, declared and detected type, size), how The Ring prepared it, what went to Gemini (a preview of the photo, or the text extracted from a PDF), Gemini's raw answer, and what was returned to the app, including failures. Captures live in memory only: the last 20, for 60 minutes, erased when the switch is turned off or the service restarts, and they are never logged or written to disk. Admin endpoints: `GET/PUT/DELETE /admin/api/debug`; `/admin/api/monitoring` still carries no receipt contents. Also changed the extraction prompt so the merchant is the seller on the receipt, not the mall or location where the store is (a Jarir receipt read as "Hayat Mall"), and Gemini now writes a short `merchantEvidence` note quoting the text it used for the seller, shown in the capture and not returned to apps. The Android app no longer shows the payload and now shows the request ID, to match a result with its capture. 105 backend tests and 7 app tests pass. Not yet deployed to The Ring.
@@ -110,5 +116,17 @@ Tool: Claude Code — Developer: Meshal Khaled
 ## 2026-10-20 17:25 (Asia/Riyadh)
 
 **Update:** Fixed receipts still timing out although spare keys were set up. The Ring's logs showed the chain working as designed but wasting its time: each attempt waited the full 40 s on a Gemini call that never answered (first key, then its fallback model), leaving almost nothing for key 2. Gemini's response time is very uneven today (the same call took 2 to 34 s, and one key was slower than the others). The chain now starts the next fallback alongside a call that is still unanswered after 12 s (`GEMINI_HEDGE_AFTER_MS`, 0 turns it off) instead of waiting for it to time out, and also starts the next one immediately when a call fails. The first good answer wins and the others are cancelled; at most three calls run at once, within the same 85 s deadline. Extra calls only happen when a call is slow or failing, and each counts against the daily cap. Checked live on The Ring with six real extractions at once: all six succeeded in 12 to 34 s, two of them after a 503 on the fallback model. 123 backend tests pass. Deployed; backup in `backups/pre-hedge-*`.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:28 (Asia/Riyadh)
+
+**Update:** Synced the documents on the `infrastructure` branch with the `main` folder (`Desktop\Dhamantaha`). Mazen-Plan.md, Meshal-Plan.md and Resource.md were already identical. The only entry missing here was the Codex entry for the brand logo (16:24), which is now included in time order. Nothing was removed or rewritten. Correction to two earlier entries: the ones headed 17:05 and 17:25 carry the wrong time. The first was written before 16:36, since it still says "not yet deployed", and the second just before 17:12, when the commit that contains it was made. Their position in this file is the true order. The logo files themselves (`assets/brand/`, `Dhamantha.png`) exist only in the main folder and are not committed yet.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:29 (Asia/Riyadh)
+
+**Update:** Moved the shared documents back to the repository root on the `infrastructure` branch, the same place they have on `main`: UPDATES.md, Mazen-Plan.md, Meshal-Plan.md and Resource.md. The `documents/` folder no longer exists on this branch. The log is now one file at the same path on every branch, so merging into `main` only adds the new entries instead of clashing with the root UPDATES.md. Compared with `main`, the only difference is the added log entries. Updated the plan link in `infrastructure/README.md`.
 
 Tool: Claude Code — Developer: Meshal Khaled

@@ -20,7 +20,7 @@ Android app ◀── wallet-ready draft ── user reviews ── saved on the
 
 - API contract for the app: [API.md](API.md), also live at `/docs` on a running server.
 - Deploying on The Ring at dhamantaha.arc-homlab.com: [DEPLOY.md](DEPLOY.md).
-- Plan and background: [../documents/Meshal-Plan.md](../documents/Meshal-Plan.md).
+- Plan and background: [../Meshal-Plan.md](../Meshal-Plan.md).
 
 ## Quick start (browser testing, no Gemini key needed)
 
