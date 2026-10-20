@@ -290,11 +290,12 @@ function describeChange(entry, side) {
 
 export function report(result, mode) {
   const lines = [`Shared docs on "${result.branch}" compared with main:`];
+  const width = Math.max(28, ...result.plan.map((entry) => entry.name.length + 2));
   for (const entry of result.plan) {
     const parts = [];
     if (entry.needsMain) parts.push(`${mode === 'push' ? 'main gets' : 'main would get'}: ${describeChange(entry, 'main')}`);
     if (entry.needsHere) parts.push(`${mode === 'check' ? 'this folder would get' : 'this folder gets'}: ${describeChange(entry, 'here')}`);
-    lines.push(`  ${entry.name.padEnd(28)}${parts.length ? parts.join(' · ') : 'in sync'}`);
+    lines.push(`  ${entry.name.padEnd(width)}${parts.length ? parts.join(' · ') : 'in sync'}`);
   }
   if (result.pushed) lines.push(`Pushed ${result.pushed.slice(0, 7)} to main.`);
   else if (mode === 'check' && (result.forMain.length || result.forHere.length)) {
