@@ -4,7 +4,8 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 const android = Capacitor.getPlatform() === 'android';
 const appLock = android ? registerPlugin('AppLock') : null;
 
-export default function AppLockSettings() {
+export default function AppLockSettings({ arabic = false }) {
+  const t = (en, ar) => arabic ? ar : en;
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -29,17 +30,17 @@ export default function AppLockSettings() {
   };
 
   return <div className="app-lock-settings">
-    <h3>App lock</h3>
-    <p className="muted">Use biometrics to open Dhamantaha, with your phone’s password, PIN, or pattern as fallback. Locks again when you leave the app.</p>
+    <h3>{t('App lock', 'قفل التطبيق')}</h3>
+    <p className="muted">{t('Use biometrics to open Dhamantaha, with your phone’s password, PIN, or pattern as fallback. Locks again when you leave the app.', 'استخدم البصمة أو رمز قفل الهاتف لفتح ضمنتها. يُقفل التطبيق مجددًا عند مغادرته.')}</p>
     {status ? <>
       <label className="lock-toggle">
-        <span>Require unlock to open app</span>
+        <span>{t('Require unlock to open app', 'طلب التحقق عند فتح التطبيق')}</span>
         <input type="checkbox" role="switch" checked={status.enabled} disabled={busy || (!status.available && !status.enabled)} onChange={toggle} />
       </label>
-      {!status.available && <p className="muted">Set up a screen-lock password, PIN, or pattern in Android Settings first.</p>}
-      {status.available && !status.biometricsAvailable && <p className="muted">Biometrics aren’t set up or available right now. Your phone screen lock can still unlock the app.</p>}
-    </> : <p role="status" className="muted">{error ? 'App lock settings unavailable.' : 'Loading app lock…'}</p>}
-    {busy && <p role="status" className="muted">Confirm using Android’s unlock prompt…</p>}
+      {!status.available && <p className="muted">{t('Set up a screen lock in Android Settings first.', 'أعدّ قفل الشاشة في إعدادات أندرويد أولًا.')}</p>}
+      {status.available && !status.biometricsAvailable && <p className="muted">{t('Biometrics are unavailable. Your phone screen lock still works.', 'البصمة غير متاحة حاليًا. يمكنك استخدام قفل شاشة الهاتف.')}</p>}
+    </> : <p role="status" className="muted">{error ? t('App lock settings unavailable.', 'إعدادات القفل غير متاحة.') : t('Loading app lock…', 'جارٍ تحميل قفل التطبيق…')}</p>}
+    {busy && <p role="status" className="muted">{t('Confirm using Android’s unlock prompt…', 'أكّد هويتك في نافذة أندرويد…')}</p>}
     {error && <p role="alert" className="lock-error">{error}</p>}
   </div>;
 }
