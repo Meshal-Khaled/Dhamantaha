@@ -160,3 +160,9 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Test of the automatic publish. This entry was added on a throwaway branch (docs-sync-action-test) and should reach main through the "Sync shared docs to main" GitHub Action, without anyone running the script.
 
 Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 18:19 (Asia/Riyadh)
+
+**Update:** Publishing the shared docs to `main` is now automatic. A GitHub Action, "Sync shared docs to main" (`.github/workflows/sync-docs.yml`), runs whenever any branch other than `main` is pushed with a changed shared doc: it runs `scripts/docs-sync.mjs --push`, which merges that branch's docs into `main` (the log keeps every entry) and pushes one docs-only commit. Tested end to end on a throwaway branch carrying one new log entry: the run took 14 seconds and `main` received the entry as a commit by github-actions[bot]; the branch was deleted afterwards. Because the Action publishes without anyone watching, the script now also refuses a log that edits or removes entries `main` already has. While testing, fixed a bug in the script: after a doc had been published once, a later edit to it looked like a conflict, because `main`'s docs commit is not part of the branch's history. Each publish now records the branch commit it came from (a `Docs-From:` line) and the next merge starts from that version; docs other than the log must be committed before they are published. 23 tests pass. To use it, a branch needs the workflow file, so teammates pull `main` once. GitHub does not let the Action change files under `.github/`, so a change to the workflow itself reaches `main` only when someone runs `node scripts/docs-sync.mjs --push` on their own machine. The Action needs Actions to stay enabled on the repository and `main` to stay unprotected.
+
+Tool: Claude Code — Developer: Meshal Khaled
