@@ -2,6 +2,18 @@
 
 React + Vite packaged with Capacitor. Photograph or pick a receipt (photo or PDF). Its original is saved privately on the device immediately, even offline. Send a saved receipt to The Ring (`POST /v1/receipts/analyze`) to read it; successful analysis is saved alongside the original.
 
+## Frontend integration
+
+The app uses the design from the `Frontend-UI` branch, preserved in `../ضمنتها/`. Its HTML pages remain a reference; the APK runs React screens connected to the real camera, API, and private receipt wallet.
+
+- **Home** shows the saved receipt count, active warranties, and warranty/return deadlines within 30 days. Numbers come from saved data, not demo products. When more pages are available, counts show `+` and the user can load more receipts.
+- **Receipts** searches loaded purchases by product, merchant, or original filename. Open a purchase to see its analysis, current countdowns, original file, and deletion confirmation.
+- **Add receipt** opens the camera or photo/PDF picker. The original is saved before analysis and can also be edited manually offline.
+- **Settings** saves Arabic/English, light/dark appearance, and normal/large text separately from the existing API settings, preserving previously configured client keys. The real Android app-lock control remains available. Connection settings and request diagnostics are under **Analysis connection**.
+- Purchase details support editing individual products, merchant, price, purchase date, and warranty/return durations. Owner-entered policy durations are stored with the local analysis and do not claim the receipt printed those terms. Month/year calculations clamp to the final day of the target month. Printed warranty dates stay fixed; calculated warranties follow the purchase date. Re-analysis replaces manual edits.
+- The frontend's sample purchases and pretend sign-out/Face ID controls are replaced by actual wallet data and the existing native app lock. Scheduled phone notifications are not enabled; upcoming deadlines appear on Home. Refund approval is not inferred.
+- Branding and CSS are bundled in the APK; no Google Fonts request is needed to render the interface offline.
+
 ## Device receipt wallet
 
 - **Saved receipts** lists locally saved originals and analysis results. Open a receipt offline, view its photo, open its original in an Android PDF/image viewer, read it again, or delete it with confirmation.
@@ -32,12 +44,16 @@ npm run android:logs      # app console output from the phone (adb logcat)
 
 The API address defaults to `https://dhamantaha.arc-homlab.com/v1`. The Ring requires a client key (`X-Client-Key`, one of `CLIENT_KEYS` in the server's private `.env`). Enter it in the app under ⚙ Settings, or set `VITE_CLIENT_KEY` in a git-ignored `.env.local` before building. See `.env.example`.
 
-The **Show debug** panel lists request metadata (status, duration, `requestId`). Detailed server captures remain in The Ring's authenticated dashboard.
+**Settings → Analysis connection → Request diagnostics** lists request metadata (status, duration, `requestId`). Detailed server captures remain in The Ring's authenticated dashboard.
 
 ## Layout
 
 - `src/api.js` — the routing to The Ring: health check, upload, error handling (tested in `test/`)
-- `src/App.jsx` — camera/file picking, send, result and debug views
+- `src/App.jsx` — camera/file picking, API requests, navigation and wallet operations
+- `src/WalletLayout.jsx` and `src/WalletScreens.jsx` — live Home, Receipts, Add, Settings, detail and editing screens
+- `src/wallet-view.js` — dashboard summaries and owner-entered warranty/return calculations
+- `src/appearance.js` — versioned language/theme/text-size preferences
+- `src/frontend.css` and `src/styles.css` — original frontend design and native-app adaptations
 - `src/receipt-wallet.js` — save/list/open/delete and analysis persistence; native bridge and browser IndexedDB adapters
 - `src/AppLockSettings.jsx` — Android app-lock toggle and authentication errors
 - `android/app/src/main/java/com/dhamantaha/app/AppLock.java` — native lock screen, Android biometric prompt, device-credential fallback and lifecycle handling
