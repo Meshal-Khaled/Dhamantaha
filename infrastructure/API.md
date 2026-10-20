@@ -66,19 +66,30 @@ const result = await response.json();
   "processingMethod": "image",
   "receipt": {
     "merchantName": "eXtra Electronics",
+    "branchName": "Riyadh Park Branch",
+    "customerServicePhone": "920000000",
     "purchaseDate": "2026-10-01",
     "receiptNumber": "INV-20261001-77",
     "currency": "SAR",
     "total": 3499,
-    "warrantyNotes": null
+    "warrantyNotes": null,
+    "returnPolicy": {
+      "sourceText": "Exchange within 7 days, refund within 3 days with the original receipt.",
+      "returnDurationValue": 3,
+      "returnDurationUnit": "days",
+      "exchangeDurationValue": 7,
+      "exchangeDurationUnit": "days"
+    }
   },
   "items": [
     {
-      "description": "Galaxy Phone S99",
+      "description": "GALAXY PHONE S99 256GB SM-S99 الجوالات",
+      "displayName": "Galaxy Phone S99 256GB",
+      "category": "الجوالات",
       "quantity": 1,
       "unitPrice": 3499,
       "totalPrice": 3499,
-      "productIdentifier": "SN-ABC-123",
+      "productIdentifier": "SM-S99",
       "warranty": {
         "statedOnReceipt": true,
         "sourceText": "Warranty: 2 years manufacturer warranty",
@@ -86,7 +97,8 @@ const result = await response.json();
         "durationUnit": "years",
         "expirationDate": "2028-10-01",
         "expirationBasis": "calculated",
-        "status": "active"
+        "status": "active",
+        "provider": "Samsung"
       }
     }
   ],
@@ -101,11 +113,18 @@ const result = await response.json();
 | --- | --- |
 | `processingMethod` | `image` (photo), `pdf_text` (the PDF's embedded text was analyzed), or `pdf_visual` (scanned or mixed PDF, analyzed as an image). |
 | `receipt.currency` | ISO 4217 code or `null`. Amounts are plain numbers. |
-| `items[].productIdentifier` | SKU, model, serial, or barcode, if printed. |
+| `receipt.branchName` | Branch, outlet, or location of the store as printed (never a repeat of `merchantName`), or `null`. |
+| `receipt.customerServicePhone` | Customer service or hotline number, else the store phone, as digits with optional `+`, spaces, and `-`. `null` if none is printed. |
+| `receipt.returnPolicy` | Always an object. `sourceText` is the printed return, exchange, or refund policy (or `null`). `returnDurationValue`/`Unit` (refund) and `exchangeDurationValue`/`Unit` are set only when that text states them. |
+| `items[].description` | The whole item line as printed, kept for reference. |
+| `items[].displayName` | Short readable name to show: no codes, category labels, or stray symbols, and no all-caps. Falls back to `description`. |
+| `items[].category` | Category or department label printed on the line, or `null`. |
+| `items[].productIdentifier` | SKU, model, serial, barcode, or product code, if printed. |
 | `warranty.statedOnReceipt` | `true` only when the receipt explicitly states a warranty for the item, with the wording in `sourceText`. When `false`, the user must enter the terms. |
 | `warranty.durationValue` / `durationUnit` | Whole number plus `days`, `weeks`, `months`, or `years`. Both are set, or both are `null`. |
 | `warranty.expirationDate` / `expirationBasis` | `printed` (on the receipt) or `calculated` (purchase date + duration), or `null` if unknown. |
 | `warranty.status` | `active`, `expiring_soon` (≤ 30 days left), `expired`, or `unknown`, as of today in the server's `WALLET_TIME_ZONE`. Recalculate on the phone for display. |
+| `warranty.provider` | Company that gives the warranty when the receipt names one other than the seller (manufacturer, agent, extended-warranty company), else `null`. |
 | `review.missingFields` | Paths still `null` that the user should fill in. `items[i].warranty` means no expiration is known yet. |
 | `review.uncertainties` | Values the user should double-check. |
 

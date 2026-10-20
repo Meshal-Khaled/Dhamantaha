@@ -27,8 +27,72 @@ describe('normalizeProviderResponse', () => {
       expirationDate: '2028-10-01',
       expirationBasis: 'calculated',
       status: 'active',
+      provider: null,
     });
     assert.deepEqual(result.review, { missingFields: [], uncertainties: [] });
+  });
+
+  it('separates the readable product name from codes and category labels', () => {
+    const response = sampleProviderResponse();
+    response.items[0] = {
+      ...response.items[0],
+      // Arabic presentation forms, as PDF text extraction often yields them.
+      description: 'MAGSAFE PHONE GRIP/STAND BL#WP@7 ﻣﻠﺤﻘﺎﺕ ﺍﻟﻬﻮﺍﺗﻒ ﺍﻟﺬﻛﻴﺔ',
+      displayName: ' MagSafe Phone Grip/Stand‏ ',
+      category: 'ﻣﻠﺤﻘﺎﺕ ﺍﻟﻬﻮﺍﺗﻒ ﺍﻟﺬﻛﻴﺔ',
+      productIdentifier: 'BL#WP@7',
+    };
+    const [item] = normalize(response).items;
+    assert.equal(item.displayName, 'MagSafe Phone Grip/Stand');
+    assert.equal(item.category, 'ملحقات الهواتف الذكية');
+    assert.equal(item.description, 'MAGSAFE PHONE GRIP/STAND BL#WP@7 ملحقات الهواتف الذكية');
+    assert.equal(item.productIdentifier, 'BL#WP@7');
+  });
+
+  it('falls back to the printed description when no display name is given', () => {
+    const response = sampleProviderResponse();
+    delete response.items[0].displayName;
+    assert.equal(normalize(response).items[0].displayName, 'Galaxy Phone S99');
+  });
+
+  it('keeps branch and customer service details, and drops a branch that repeats the merchant', () => {
+    const result = normalize(withReceipt({ customerServicePhone: 'هاتف: ٩٢٠٠٠٠٠٠٠ / 0112345678' }));
+    assert.equal(result.receipt.branchName, 'Riyadh Park Branch');
+    assert.equal(result.receipt.customerServicePhone, '920000000');
+    assert.equal(normalize(withReceipt({ branchName: 'EXTRA electronics' })).receipt.branchName, null);
+    assert.equal(normalize(withReceipt({ customerServicePhone: '+966 11 234-5678' })).receipt.customerServicePhone, '+966 11 234-5678');
+  });
+
+  it('nulls a customer service value that is not a phone number', () => {
+    const result = normalize(withReceipt({ customerServicePhone: 'Visit our website' }));
+    assert.equal(result.receipt.customerServicePhone, null);
+    assert.deepEqual(flagged(result), ['receipt.customerServicePhone']);
+  });
+
+  it('keeps a printed return policy with its return and exchange periods', () => {
+    assert.deepEqual(normalize(sampleProviderResponse()).receipt.returnPolicy, sampleProviderResponse().receipt.returnPolicy);
+  });
+
+  it('drops return periods without printed policy text, and incomplete periods', () => {
+    const invented = normalize(withReceipt({ returnPolicy: { sourceText: null, returnDurationValue: 14, returnDurationUnit: 'days' } }));
+    assert.deepEqual(invented.receipt.returnPolicy, {
+      sourceText: null,
+      returnDurationValue: null,
+      returnDurationUnit: null,
+      exchangeDurationValue: null,
+      exchangeDurationUnit: null,
+    });
+    assert.deepEqual(flagged(invented), ['receipt.returnPolicy']);
+    const partial = normalize(withReceipt({ returnPolicy: { sourceText: 'No refunds after 3 days.', returnDurationValue: 3, returnDurationUnit: null } }));
+    assert.equal(partial.receipt.returnPolicy.sourceText, 'No refunds after 3 days.');
+    assert.equal(partial.receipt.returnPolicy.returnDurationValue, null);
+    assert.equal(normalize(withReceipt({ returnPolicy: null })).receipt.returnPolicy.sourceText, null);
+  });
+
+  it('names a warranty provider only when it is not the seller', () => {
+    assert.equal(normalize(withWarranty({ provider: 'Samsung Saudi Arabia' })).items[0].warranty.provider, 'Samsung Saudi Arabia');
+    assert.equal(normalize(withWarranty({ provider: 'eXtra' })).items[0].warranty.provider, null);
+    assert.equal(normalize(withWarranty({ provider: 'Samsung', statedOnReceipt: false })).items[0].warranty.provider, null);
   });
 
   it('prefers a printed expiration date', () => {

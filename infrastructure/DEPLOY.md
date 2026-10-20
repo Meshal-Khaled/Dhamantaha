@@ -10,6 +10,9 @@
 - Monitoring stores up to 60 recent request metadata entries and one hour of activity buckets in memory. Counters and sessions reset on restart. No receipt files, text, or analysis results enter these counters.
 - **Payload capture** (`DEBUG_CAPTURE`, on by default, switchable on the Monitoring page): the Show button on each recent request opens what the request received, what went to Gemini (receipt text, or a small photo preview), Gemini's raw answer, and what was sent back, with a Copy button. These payloads contain receipt contents. They stay in process memory only (last 60 requests, 60 minutes), are never logged or written to disk, and are erased when the switch is turned off or the container restarts. Set `DEBUG_CAPTURE=false` to start with it off.
 - Healthy on `127.0.0.1:3100`. Port `3000` is free.
+- Always pass `-p dhamantaha` to `docker compose`. Without it, Compose names the project after the folder (`infrastructure`), builds a second image, and starts a second container that competes for port 3100.
+- The Ring copy is not a Git checkout. To update: back up the folder to `../backups/pre-<change>-<time>`, tag the running image (`docker tag dhamantaha-infrastructure:latest dhamantaha-infrastructure:pre-<change>-<time>`), copy the changed files, run `docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml build`, run the tests in the new image (`docker run --rm -e NODE_ENV= -v "$PWD/test:/app/test:ro" -v "$PWD/scripts:/app/scripts:ro" dhamantaha-infrastructure:latest node --test "test/**/*.test.js"`), then `up -d`. To roll back, retag the saved image as `latest` and run `up -d` again.
+- 20 October 2026, 20:24 (Asia/Riyadh): deployed structured receipt output (`displayName`, `category`, `branchName`, `customerServicePhone`, `returnPolicy`, `warranty.provider`). Backup `../backups/pre-clean-names-20261020-202239`, image tag `pre-clean-names-20261020-202239`. A live Gemini analysis of a synthetic receipt returned every new field.
 - Server uses `gemini-3.1-flash-lite` and a read-only mount of the existing Gemini key. Client access tokens are in the private server `.env` and are not shown in logs or committed.
 - `/health`, `/docs/`, and `/openapi.json` respond successfully. Missing client tokens are rejected with `401`. All 101 automated tests pass, including dashboard authentication, settings persistence, live reconfiguration, and monitoring privacy.
 - Live Gemini analysis returned provider `503 UNAVAILABLE` (high demand); successful receipt extraction is not yet verified.
@@ -44,7 +47,7 @@ empty when using the mounted key. Set `GEMINI_MODEL` in the server's private `.e
 After replacing the key in the Ring dashboard, recreate this container to load it:
 
 ```bash
-docker compose -f compose.yaml -f compose.ring.yaml up -d --force-recreate
+docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml up -d --force-recreate
 ```
 
 The `.env` also holds client access tokens, `PORT=3100`,
@@ -83,12 +86,12 @@ Also in Google AI Studio / Google Cloud: set a budget alert or quota for the key
 ## 3. Start it
 
 ```bash
-docker compose -f compose.yaml -f compose.ring.yaml up -d --build
-docker compose -f compose.yaml -f compose.ring.yaml ps  # wait for "healthy"
+docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml up -d --build
+docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml ps  # wait for "healthy"
 curl -s http://127.0.0.1:3100/health      # "provider":"gemini","clientKeyRequired":true
 ```
 
-The container runs read-only and as a non-root user, and it listens only on `127.0.0.1:3100`, so nothing on your network reaches it except through the tunnel. After changing `.env`, apply the change with `docker compose -f compose.yaml -f compose.ring.yaml up -d --force-recreate`. Use only the base `compose.yaml` for installations with their own inline key and no Ring key mount.
+The container runs read-only and as a non-root user, and it listens only on `127.0.0.1:3100`, so nothing on your network reaches it except through the tunnel. After changing `.env`, apply the change with `docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml up -d --force-recreate`. Use only the base `compose.yaml` for installations with their own inline key and no Ring key mount.
 
 ## 4. Point the subdomain at it
 
