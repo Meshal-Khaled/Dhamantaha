@@ -81,6 +81,17 @@ describe('Gemini provider', () => {
     });
   }
 
+  it('treats a 400 "API key not valid" as a key problem so a fallback key can take over', async () => {
+    const client = fakeClient(() => {
+      throw new ApiError({ message: '{"error":{"status":"INVALID_ARGUMENT","message":"API key not valid. Please pass a valid API key."}}', status: 400 });
+    });
+    await assert.rejects(createGeminiProvider(config, { client }).analyze({ text: 'x' }), {
+      status: 502,
+      code: 'analysis_unavailable',
+      category: 'provider_auth',
+    });
+  });
+
   it('maps network failures to analysis_unavailable', async () => {
     const client = fakeClient(() => {
       throw new TypeError('fetch failed');

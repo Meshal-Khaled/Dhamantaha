@@ -1,0 +1,31 @@
+# Reuse the Gemini key managed by The Ring's existing admin dashboard.
+# Start with: docker compose -f compose.yaml -f compose.ring.yaml up -d --build
+services:
+  infrastructure:
+    # The private key file belongs to the Ring's ubuntu user; keep it mode 0600.
+    user: "${RING_UID:-1001}:${RING_GID:-1001}"
+    environment:
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
+      # If a call fails: another model on the same key, then the next key (also managed by the Ring dashboard).
+      GEMINI_FALLBACK_KEY_FILES: /run/secrets/gemini_api_key_2,/run/secrets/gemini_api_key_3
+      GEMINI_FALLBACK_MODELS: ${GEMINI_FALLBACK_MODELS:-gemini-3-flash-preview}
+      ADMIN_KEY_FILE: /run/secrets/ring_admin_key
+      ADMIN_STATE_DIRECTORY: /app/state
+      ADMIN_COOKIE_SECURE: "true"
+    volumes:
+      - ../state:/app/state
+    secrets:
+      - gemini_api_key
+      - gemini_api_key_2
+      - gemini_api_key_3
+      - ring_admin_key
+
+secrets:
+  gemini_api_key:
+    file: ${GEMINI_API_KEY_SOURCE:-/home/ubuntu/magic/keys/gemini.key}
+  gemini_api_key_2:
+    file: ${GEMINI_API_KEY_2_SOURCE:-/home/ubuntu/magic/keys/gemini.2.key}
+  gemini_api_key_3:
+    file: ${GEMINI_API_KEY_3_SOURCE:-/home/ubuntu/magic/keys/gemini.3.key}
+  ring_admin_key:
+    file: ${RING_ADMIN_KEY_SOURCE:-/home/ubuntu/magic/secrets/admin.key}

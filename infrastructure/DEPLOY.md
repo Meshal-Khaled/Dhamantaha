@@ -1,9 +1,24 @@
 # Deploying on The Ring
 
+## Deployment status — 20 October 2026
+
+- Installed at `/home/ubuntu/dhamantaha/infrastructure` on The Ring.
+- Container: `dhamantaha-infrastructure-1`; Compose project: `dhamantaha`.
+- Private dashboard: `/dashboard/api-settings` and `/dashboard/monitoring`. The root redirects to API settings. Sign in with the existing Ring admin key; sessions use an HttpOnly SameSite cookie.
+- Client base URL: `https://dhamantaha.arc-homlab.com/v1`, with `POST /receipts/analyze` and `GET /health` relative to it. The legacy `/health` remains available.
+- The Ring override mounts the existing admin key read-only and the private `../state` directory at `/app/state`. Only provider settings and service-specific credentials are persisted there, with owner-only file permissions. Blank keys keep the current value; the dashboard never returns saved provider keys. Switching back to the Ring key removes the service-specific override.
+- Monitoring stores up to 60 recent request metadata entries and one hour of activity buckets in memory. Counters and sessions reset on restart. No receipt files, text, or analysis results enter these counters.
+- **Payload capture** (`DEBUG_CAPTURE`, on by default, switchable on the Monitoring page): the Show button on each recent request opens what the request received, what went to Gemini (receipt text, or a small photo preview), Gemini's raw answer, and what was sent back, with a Copy button. These payloads contain receipt contents. They stay in process memory only (last 60 requests, 60 minutes), are never logged or written to disk, and are erased when the switch is turned off or the container restarts. Set `DEBUG_CAPTURE=false` to start with it off.
+- Healthy on `127.0.0.1:3100`. Port `3000` is free.
+- Server uses `gemini-3.1-flash-lite` and a read-only mount of the existing Gemini key. Client access tokens are in the private server `.env` and are not shown in logs or committed.
+- `/health`, `/docs/`, and `/openapi.json` respond successfully. Missing client tokens are rejected with `401`. All 101 automated tests pass, including dashboard authentication, settings persistence, live reconfiguration, and monitoring privacy.
+- Live Gemini analysis returned provider `503 UNAVAILABLE` (high demand); successful receipt extraction is not yet verified.
+- The public hostname is routed through the existing tunnel to `http://localhost:3100`. The dashboard renders publicly in a browser, and an API client outside The Ring receives `200` from `/v1/health`.
+
 Puts the infrastructure at **https://dhamantaha.arc-homlab.com** through the same Cloudflare Tunnel that serves `ring.arc-homlab.com`.
 
 ```
-Phone ──HTTPS──▶ Cloudflare (dhamantaha.arc-homlab.com) ──tunnel──▶ cloudflared on The Ring ──▶ 127.0.0.1:3000 (container)
+Phone ──HTTPS──▶ Cloudflare (dhamantaha.arc-homlab.com) ──tunnel──▶ cloudflared on The Ring ──▶ 127.0.0.1:3100 (container)
 ```
 
 Cloudflare handles HTTPS, which Android requires, and your home IP is never exposed. The Gemini key lives in one file on The Ring and never leaves it.
@@ -20,6 +35,22 @@ cd ~/dhamantaha/infrastructure
 If the repository is private, clone with a GitHub deploy key or a token. Later updates are `git pull` followed by step 3.
 
 ## 2. Place the API keys
+
+For this Ring deployment, reuse the Gemini key already managed at `ring.arc-homlab.com`.
+`compose.ring.yaml` mounts `/home/ubuntu/magic/keys/gemini.key` read-only as
+`/run/secrets/gemini_api_key`. The backend reads it through `GEMINI_API_KEY_FILE`;
+the provider key is not copied to the laptop, Git, or the app. Keep `GEMINI_API_KEY`
+empty when using the mounted key. Set `GEMINI_MODEL` in the server's private `.env`.
+After replacing the key in the Ring dashboard, recreate this container to load it:
+
+```bash
+docker compose -f compose.yaml -f compose.ring.yaml up -d --force-recreate
+```
+
+The `.env` also holds client access tokens, `PORT=3100`,
+`TRUST_PROXY=loopback,uniquelocal`, and `GEMINI_TIMEOUT_MS=40000`.
+Port 3000 remains free. For a separate installation with its own provider key,
+the interactive setup below remains available.
 
 Run the setup command in `infrastructure/`. If Node.js is installed on The Ring:
 
@@ -52,12 +83,12 @@ Also in Google AI Studio / Google Cloud: set a budget alert or quota for the key
 ## 3. Start it
 
 ```bash
-docker compose up -d --build
-docker compose ps                         # wait for "healthy"
-curl -s http://127.0.0.1:3000/health      # "provider":"gemini","clientKeyRequired":true
+docker compose -f compose.yaml -f compose.ring.yaml up -d --build
+docker compose -f compose.yaml -f compose.ring.yaml ps  # wait for "healthy"
+curl -s http://127.0.0.1:3100/health      # "provider":"gemini","clientKeyRequired":true
 ```
 
-The container runs read-only and as a non-root user, and it listens only on `127.0.0.1:3000`, so nothing on your network reaches it except through the tunnel. After changing `.env`, apply the change with `docker compose up -d --force-recreate`.
+The container runs read-only and as a non-root user, and it listens only on `127.0.0.1:3100`, so nothing on your network reaches it except through the tunnel. After changing `.env`, apply the change with `docker compose -f compose.yaml -f compose.ring.yaml up -d --force-recreate`. Use only the base `compose.yaml` for installations with their own inline key and no Ring key mount.
 
 ## 4. Point the subdomain at it
 
@@ -68,12 +99,12 @@ In the Cloudflare dashboard, go to **Zero Trust → Networks → Tunnels**, open
 | Subdomain | `dhamantaha` |
 | Domain | `arc-homlab.com` |
 | Path | *(empty)* |
-| Service | `HTTP` · `localhost:3000` |
+| Service | `HTTP` · `localhost:3100` |
 
 Cloudflare creates the DNS record for you. If `cloudflared` runs **in Docker** rather than on the host, `localhost` points to the cloudflared container itself. In that case:
 
-- use `http://host.docker.internal:3000` (Docker Desktop), or
-- put both on one network and use `http://infrastructure:3000`. Add this to `compose.yaml`, using your cloudflared network's name:
+- use `http://host.docker.internal:3100` (Docker Desktop), or
+- put both on one network and use `http://infrastructure:3100`. Add this to `compose.yaml`, using your cloudflared network's name:
 
   ```yaml
   services:
@@ -90,7 +121,7 @@ If your tunnel is managed locally with a `config.yml` instead of the dashboard, 
 ```yaml
 ingress:
   - hostname: dhamantaha.arc-homlab.com
-    service: http://localhost:3000
+    service: http://localhost:3100
   # ...existing rules, ending with: - service: http_status:404
 ```
 

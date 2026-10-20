@@ -1,0 +1,8 @@
+{
+  "appId": "com.dhamantaha.app",
+  "appName": "Dhamantaha",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}

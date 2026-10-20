@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { loadConfig } from '../src/config.js';
 import { createDailyBudget } from '../src/http/protection.js';
 import { createProvider } from '../src/providers/index.js';
@@ -8,7 +11,7 @@ describe('loadConfig', () => {
   it('uses safe defaults', () => {
     const config = loadConfig({});
     assert.equal(config.host, '127.0.0.1');
-    assert.equal(config.port, 3000);
+    assert.equal(config.port, 3100);
     assert.deepEqual(config.corsOrigins, []);
     assert.deepEqual(config.clientKeys, []);
     assert.equal(config.analysisProvider, 'gemini');
@@ -26,6 +29,21 @@ describe('loadConfig', () => {
       { name: 'android', key: '0123456789abcdef' },
       { name: 'web-test', key: 'fedcba9876543210' },
     ]);
+  });
+
+  it('loads a mounted Gemini key file and keeps inline-key precedence', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'dhamantaha-key-test-'));
+    try {
+      const file = join(dir, 'gemini.key');
+      writeFileSync(file, 'test-server-key\n');
+      assert.equal(loadConfig({ GEMINI_API_KEY_FILE: file }).gemini.apiKey, 'test-server-key');
+      assert.equal(loadConfig({ GEMINI_API_KEY: 'inline-test-key', GEMINI_API_KEY_FILE: file }).gemini.apiKey, 'inline-test-key');
+      writeFileSync(file, '');
+      assert.throws(() => loadConfig({ GEMINI_API_KEY_FILE: file }), /GEMINI_API_KEY_FILE/);
+      assert.throws(() => loadConfig({ GEMINI_API_KEY_FILE: join(dir, 'missing') }), /GEMINI_API_KEY_FILE/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('fails fast on invalid values', () => {
@@ -48,6 +66,19 @@ describe('createProvider', () => {
 });
 
 describe('createDailyBudget', () => {
+  it('does not permit provider calls beyond the cap', () => {
+    const budget = createDailyBudget(1);
+    budget.consume();
+    assert.throws(() => budget.consume(), { code: 'daily_limit_reached' });
+    assert.deepEqual(budget.usage(), { limit: 1, used: 1 });
+  });
+
+  it('allows repeated calls when the cap is disabled', () => {
+    const budget = createDailyBudget(0);
+    for (let i = 0; i < 3; i += 1) budget.consume();
+    assert.deepEqual(budget.usage(), { limit: 0, used: 3 });
+  });
+
   it('resets at the next UTC day', () => {
     let now = new Date('2026-10-20T23:59:00Z');
     const budget = createDailyBudget(2, () => now);

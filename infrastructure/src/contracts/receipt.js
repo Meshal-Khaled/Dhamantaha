@@ -13,6 +13,7 @@ export const ProviderReceipt = z.object({
   readable: z.boolean().describe('True only if the document is a legible purchase receipt or invoice.'),
   receipt: z.object({
     merchantName: text('Store or seller name as printed.'),
+    merchantEvidence: text('Printed text that identifies the seller, and why it is the seller rather than a mall or location. For debugging only; not returned to apps.'),
     purchaseDate: text('Gregorian purchase date as YYYY-MM-DD.'),
     receiptNumber: text('Receipt, invoice, or transaction number as printed.'),
     currency: text('ISO 4217 code such as SAR or USD.'),

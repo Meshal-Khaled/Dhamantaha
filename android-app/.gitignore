@@ -1,0 +1,19 @@
+node_modules/
+dist/
+
+# A real client key stays out of Git. See .env.example.
+.env
+.env.*
+!.env.example
+
+# Capacitor/Android build output
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/capacitor-cordova-android-plugins/
+*.apk
+*.log

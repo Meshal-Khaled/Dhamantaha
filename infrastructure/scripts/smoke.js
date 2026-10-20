@@ -1,5 +1,5 @@
 // Sends one receipt to a running server and prints a summary of the result.
-// Usage: npm run smoke -- <file> [--url http://127.0.0.1:3000] [--key <client key>]
+// Usage: npm run smoke -- <file> [--url http://127.0.0.1:3100] [--key <client key>]
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -7,7 +7,7 @@ import { parseArgs } from 'node:util';
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    url: { type: 'string', default: process.env.SMOKE_URL ?? 'http://127.0.0.1:3000' },
+    url: { type: 'string', default: process.env.SMOKE_URL ?? 'http://127.0.0.1:3100' },
     key: { type: 'string', default: process.env.SMOKE_CLIENT_KEY },
     json: { type: 'boolean', default: false },
   },
@@ -15,7 +15,7 @@ const { values, positionals } = parseArgs({
 
 const [file] = positionals;
 if (!file) {
-  console.error('Usage: npm run smoke -- <file> [--url http://127.0.0.1:3000] [--key <client key>] [--json]');
+  console.error('Usage: npm run smoke -- <file> [--url http://127.0.0.1:3100] [--key <client key>] [--json]');
   process.exit(2);
 }
 

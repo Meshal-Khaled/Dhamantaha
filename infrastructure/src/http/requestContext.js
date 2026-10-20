@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
  * Assigns a request ID and writes one metadata-only log line per request.
  * Handlers add labels such as the processing method to `res.locals.logFields`.
  */
-export function requestContext(logger) {
+export function requestContext(logger, onRequest) {
   return (req, res, next) => {
     req.id = randomUUID();
     res.locals.logFields = {};
@@ -17,7 +17,7 @@ export function requestContext(logger) {
     const logOnce = (aborted) => {
       if (logged) return;
       logged = true;
-      logger.info({
+      const entry = {
         event: 'request',
         requestId: req.id,
         method: req.method,
@@ -26,7 +26,9 @@ export function requestContext(logger) {
         aborted,
         durationMs: Number((process.hrtime.bigint() - started) / 1_000_000n),
         ...res.locals.logFields,
-      });
+      };
+      logger.info(entry);
+      onRequest?.(entry);
     };
     res.on('finish', () => logOnce(false));
     res.on('close', () => logOnce(!res.writableFinished));

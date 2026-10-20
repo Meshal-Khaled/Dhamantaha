@@ -57,3 +57,58 @@ Tool: Claude Code — Developer: Meshal Khaled
 **Update:** Prepared the infrastructure for The Ring at `https://dhamantaha.arc-homlab.com` through the same Cloudflare Tunnel that serves `ring.arc-homlab.com`. Added `npm run setup` (`infrastructure/scripts/setup-env.js`), which asks for the Gemini key (hidden) and model and writes a private `.env` tuned for the tunnel: `TRUST_PROXY=loopback,uniquelocal` for real client IPs, and `GEMINI_TIMEOUT_MS=40000` to stay under Cloudflare's 100-second limit. It also generates `android` and `web-test` app keys, and re-runs keep existing values. Added `infrastructure/DEPLOY.md`, covering cloning, keys, Docker, the tunnel public hostname, Cloudflare settings (no Access on the API, Bot Fight Mode off), checks, and troubleshooting. Added tests for the setup command and for tunnel-aware rate limiting; 89 tests pass. Not yet done on The Ring itself: deployment, the tunnel hostname, and a live Gemini check.
 
 Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 13:13 (Asia/Riyadh)
+
+**Update:** Deployed the Node.js/Express backend on The Ring at /home/ubuntu/dhamantaha/infrastructure, using a healthy read-only non-root Docker container on 127.0.0.1:3100; port 3000 remains free. Updated port defaults, deployment docs, and Compose mappings. Added GEMINI_API_KEY_FILE and compose.ring.yaml to reuse the existing Ring-managed Gemini key without copying its value. Client access tokens stay in the server's private .env. Fixed per-call daily-budget enforcement including PDF fallback; all 93 tests passed. Verified health, API docs, OpenAPI, and rejection of unauthenticated analysis. Live Gemini calls returned provider 503 high-demand errors; successful receipt extraction and public Cloudflare routing remain unverified. Existing Ring services and tunnel configuration were not changed.
+
+Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 13:41 (Asia/Riyadh)
+
+**Update:** Replaced the root 404 with the Dhamantaha control room, deployed on The Ring at port 3100. Added separate /dashboard/api-settings and /dashboard/monitoring pages, using the existing Ring admin key for sign-in with secure HttpOnly sessions and CSRF protection. API settings save provider keys privately on The Ring and update the live provider without restart; blank keys preserve the current value and the Ring-key fallback can be restored. Saved keys are never returned to the browser. Monitoring shows real request outcomes, response durations, active requests, hourly activity, memory, uptime, and daily provider usage using bounded in-memory metadata only. Added GET /v1 and GET /v1/health, and documented the client base URL https://dhamantaha.arc-homlab.com/v1. All 101 tests passed. Verified local browser sign-in, settings save and navigation, live admin login/save/fallback/model check/monitoring/logout on The Ring, the public login page, and public API health (200). Receipts remain unsaved and port 3000 remains free.
+
+Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 15:51 (Asia/Riyadh)
+
+**Update:** Recorded completion of the Dhamantaha dashboard release on The Ring. The root opens the private control room, with separate API settings and monitoring pages. API settings support saving a Gemini key and model, checking access, and restoring the Ring key; changes apply immediately and saved keys are never returned to the browser. Monitoring shows request outcomes, latency, activity, uptime, memory, and provider usage without receipt contents. The client API base URL is https://dhamantaha.arc-homlab.com/v1. Deployment uses port 3100, leaving port 3000 free. Deployment validation passed all 101 automated tests plus live sign-in, settings persistence, key fallback, model access, monitoring, logout, public dashboard rendering, and public API health checks. Full live receipt extraction remains unverified following Gemini's earlier high-demand 503 responses.
+
+Tool: Codex — Developer: Meshal Khaled
+
+
+## 2026-10-20 16:10 (Asia/Riyadh)
+
+**Update:** Added the Android app in `android-app/` (React + Vite + Capacitor, per Resource.md). It takes a photo with the camera or picks a photo/PDF, checks it against the limits from `GET /v1/health`, and sends it to The Ring at `https://dhamantaha.arc-homlab.com/v1/receipts/analyze` with the `X-Client-Key` header. The result (merchant, date, total, items, warranty status, items to review) and every API error code are shown, and a debug panel lists requests, durations, request IDs and raw JSON. The API address and client key are set inside the app and never committed. `npm run android:install` builds the debug APK and installs it over adb; the app is installed on a connected phone and reached The Ring (health 200, provider gemini, key required). 7 unit tests cover the upload request, key header, error mapping, timeouts and local file checks. A real receipt upload still needs the client key entered on the phone.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:05 (Asia/Riyadh)
+
+**Update:** Moved receipt debugging from the phone to the Monitoring page of the dashboard. A new **Debug captures** card has a Capture switch (off by default). While on, each analysis request shows what the app sent (file name, declared and detected type, size), how The Ring prepared it, what went to Gemini (a preview of the photo, or the text extracted from a PDF), Gemini's raw answer, and what was returned to the app, including failures. Captures live in memory only: the last 20, for 60 minutes, erased when the switch is turned off or the service restarts, and they are never logged or written to disk. Admin endpoints: `GET/PUT/DELETE /admin/api/debug`; `/admin/api/monitoring` still carries no receipt contents. Also changed the extraction prompt so the merchant is the seller on the receipt, not the mall or location where the store is (a Jarir receipt read as "Hayat Mall"), and Gemini now writes a short `merchantEvidence` note quoting the text it used for the seller, shown in the capture and not returned to apps. The Android app no longer shows the payload and now shows the request ID, to match a result with its capture. 105 backend tests and 7 app tests pass. Not yet deployed to The Ring.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 16:36 (Asia/Riyadh)
+
+**Update:** Deployed the payload view to The Ring (container `dhamantaha-infrastructure-1`, project `dhamantaha`, healthy on 127.0.0.1:3100; the previous install is backed up in `/home/ubuntu/dhamantaha/backups/pre-payload-20261020-133504`, and `.env` and `state/` were not touched). Reworked the Monitoring page: every row in Recent requests now has a **Show** button after the outcome. It opens what the request received (headers, with the client key shown only as sent or missing, and file details), how The Ring prepared it, what was sent to Gemini (PDF text or a photo preview), Gemini's raw answer with its seller evidence, and what was sent back, with a **Copy** button that puts it on the clipboard (no download). Rejected requests such as `401 unauthorized_client` are captured too. Payload capture is on by default (`DEBUG_CAPTURE=false` starts it off) and has a switch on the page. It holds the last 60 requests for 60 minutes in memory only, and is erased when switched off or on restart. The earlier separate "Debug captures" card was removed. 106 backend tests pass. Verified publicly: `/v1/health` 200, the dashboard serves the new page, and `/admin/api/debug` requires sign-in (401).
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 16:48 (Asia/Riyadh)
+
+**Update:** Fixed the 502/504 errors on receipt analysis. The Ring was healthy; the configured model `gemini-3.1-flash-lite` was overloaded at Google (HTTP 503, or no answer until the 40 s timeout, even for a one-word prompt). With the real extraction on the same PDF text, `gemini-3-flash-preview` (3.7 s), `gemini-3.5-flash-lite` (6.8 s) and `gemini-flash-lite-latest` (9.7 s) all worked. Switched the dashboard-saved model to `gemini-3.5-flash-lite` (`state/provider.json`; the old file is in `backups/provider.json.before-model-switch`) and restarted the container. A real Jarir PDF sent from the Android app then returned 200 in 2.8 s with merchant "Jarir Marketing Company", not "Hayat Mall". Also seen: when the Ring answered 504 after 40 s, the phone said "Could not reach The Ring" instead of the real error; not yet investigated.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:00 (Asia/Riyadh)
+
+**Update:** Added a Gemini fallback chain on The Ring and a countdown in the Android app. If a call fails (overload, timeout, quota, or a bad key), The Ring now tries another model on the same key, then moves to the next key and starts again from the primary model. Bad input and disconnects are not retried. The chain shares one deadline per request (`GEMINI_TOTAL_TIMEOUT_MS`, default 85 s, under Cloudflare's 100 s), and every retry counts against the daily call cap. Configuration: `GEMINI_FALLBACK_MODELS` (set to `gemini-3-flash-preview` on The Ring) and `GEMINI_FALLBACK_KEY_FILES` (the Ring's `gemini.2.key` and `gemini.3.key`, mounted read-only in `compose.ring.yaml`). The primary key and model stay as saved in the dashboard. Google answers a bad key with HTTP 400, which is now treated as a key problem so the next key takes over. Each attempt is logged by key slot and model (never the key) and appears under "Attempts" in the payload view; the Monitoring page shows the fallbacks. Checked live inside the container: a bad key then a missing model fell through to key 2 and `gemini-3-flash-preview` and returned the right merchant, and key 3 also answers. The app keeps the result format and now adds days left to the warranty line (for example "· 324 days left", "Last day", "Ended 12 days ago"). 120 backend tests and 11 app tests pass. Deployed; backup in `backups/pre-failover-*`.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:25 (Asia/Riyadh)
+
+**Update:** Fixed receipts still timing out although spare keys were set up. The Ring's logs showed the chain working as designed but wasting its time: each attempt waited the full 40 s on a Gemini call that never answered (first key, then its fallback model), leaving almost nothing for key 2. Gemini's response time is very uneven today (the same call took 2 to 34 s, and one key was slower than the others). The chain now starts the next fallback alongside a call that is still unanswered after 12 s (`GEMINI_HEDGE_AFTER_MS`, 0 turns it off) instead of waiting for it to time out, and also starts the next one immediately when a call fails. The first good answer wins and the others are cancelled; at most three calls run at once, within the same 85 s deadline. Extra calls only happen when a call is slow or failing, and each counts against the daily cap. Checked live on The Ring with six real extractions at once: all six succeeded in 12 to 34 s, two of them after a 503 on the fallback model. 123 backend tests pass. Deployed; backup in `backups/pre-hedge-*`.
+
+Tool: Claude Code — Developer: Meshal Khaled

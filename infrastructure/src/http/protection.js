@@ -57,22 +57,29 @@ export function createDailyBudget(limit, now = () => new Date()) {
     }
   };
 
+  const requireAllowance = () => {
+    roll();
+    if (limit === 0 || used < limit) return;
+    const current = now();
+    const nextDay = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() + 1);
+    throw new AppError(503, 'daily_limit_reached', 'The daily analysis limit has been reached. Try again tomorrow.', {
+      retryAfterSeconds: Math.max(1, Math.ceil((nextDay - current.getTime()) / 1000)),
+    });
+  };
+
   return {
     middleware(req, res, next) {
-      if (limit === 0) return next();
-      roll();
-      if (used >= limit) {
-        const current = now();
-        const nextDay = Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate() + 1);
-        next(new AppError(503, 'daily_limit_reached', 'The daily analysis limit has been reached. Try again tomorrow.', {
-          retryAfterSeconds: Math.ceil((nextDay - current.getTime()) / 1000),
-        }));
-        return;
+      try {
+        requireAllowance();
+      } catch (err) {
+        return next(err);
       }
       next();
     },
     consume() {
-      roll();
+      // Reserve synchronously before every call, including concurrent requests
+      // and the second call when a PDF needs visual fallback.
+      requireAllowance();
       used += 1;
     },
     usage() {

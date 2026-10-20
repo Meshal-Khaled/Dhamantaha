@@ -1,0 +1,28 @@
+{
+  "name": "dhamantaha-android",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dhamantaha Android app: photograph or pick a receipt and send it to The Ring for analysis.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "node --test \"test/**/*.test.js\"",
+    "sync": "vite build && cap sync android",
+    "android:build": "node scripts/android.js build",
+    "android:install": "node scripts/android.js install",
+    "android:logs": "node scripts/android.js logs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/camera": "^8.2.6",
+    "@capacitor/core": "^8.5.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
+    "@vitejs/plugin-react": "^6.1.2",
+    "vite": "^8.3.4"
+  }
+}

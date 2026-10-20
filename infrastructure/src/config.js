@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 const MB = 1024 * 1024;
 const PROVIDERS = ['gemini', 'mock'];
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
@@ -65,6 +67,53 @@ function readTimeZone(env) {
   return timeZone;
 }
 
+function readGeminiKey(env) {
+  const inline = env.GEMINI_API_KEY?.trim();
+  if (inline) return inline;
+  const filename = env.GEMINI_API_KEY_FILE?.trim();
+  if (!filename) return '';
+  try {
+    const key = readFileSync(filename, 'utf8').trim();
+    if (!key) throw new Error('Empty key file.');
+    return key;
+  } catch {
+    throw new Error('GEMINI_API_KEY_FILE must point to a readable, nonempty key file.');
+  }
+}
+
+/** GEMINI_FALLBACK_KEY_FILES="/run/secrets/a,/run/secrets/b" → the keys inside those files, in order. */
+function readFallbackKeys(env) {
+  return readList(env, 'GEMINI_FALLBACK_KEY_FILES').map((filename) => {
+    try {
+      const key = readFileSync(filename, 'utf8').trim();
+      if (!key) throw new Error('Empty key file.');
+      return key;
+    } catch {
+      throw new Error('GEMINI_FALLBACK_KEY_FILES must list readable, nonempty key files.');
+    }
+  });
+}
+
+function readModelList(env, name) {
+  const models = readList(env, name).map((entry) => entry.replace(/^models\//, ''));
+  if (models.some((model) => !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(model))) {
+    throw new Error(`${name} must list Gemini model IDs separated by commas.`);
+  }
+  return models;
+}
+
+function readAdminKey(env) {
+  if (env.ADMIN_KEY?.trim()) return env.ADMIN_KEY.trim();
+  if (!env.ADMIN_KEY_FILE?.trim()) return '';
+  try {
+    const key = readFileSync(env.ADMIN_KEY_FILE.trim(), 'utf8').trim();
+    if (key.length < 16) throw new Error('Invalid key.');
+    return key;
+  } catch {
+    throw new Error('ADMIN_KEY_FILE must point to a readable admin key of at least 16 characters.');
+  }
+}
+
 export function loadConfig(env = process.env) {
   const maxImageBytes = readInt(env, 'MAX_IMAGE_BYTES', 20 * MB, { max: 50 * MB });
   const maxPdfBytes = readInt(env, 'MAX_PDF_BYTES', 10 * MB, { max: 50 * MB });
@@ -72,18 +121,31 @@ export function loadConfig(env = process.env) {
   return {
     // Loopback by default: paid analysis stays private until it is deliberately exposed.
     host: env.HOST?.trim() || '127.0.0.1',
-    port: readInt(env, 'PORT', 3000, { max: 65535 }),
+    port: readInt(env, 'PORT', 3100, { max: 65535 }),
     trustProxy: readTrustProxy(env),
     corsOrigins: readList(env, 'CORS_ORIGINS'),
     clientKeys: readClientKeys(env),
     enableApiDocs: readBool(env, 'ENABLE_API_DOCS', true),
+    admin: {
+      key: readAdminKey(env),
+      stateDirectory: env.ADMIN_STATE_DIRECTORY?.trim() || '',
+      secureCookie: readBool(env, 'ADMIN_COOKIE_SECURE', env.NODE_ENV === 'production'),
+      debugCapture: readBool(env, 'DEBUG_CAPTURE', true),
+    },
     logLevel: readChoice(env, 'LOG_LEVEL', LOG_LEVELS, 'info'),
     walletTimeZone: readTimeZone(env),
     analysisProvider: readChoice(env, 'ANALYSIS_PROVIDER', PROVIDERS, 'gemini'),
     gemini: {
-      apiKey: env.GEMINI_API_KEY?.trim() || '',
+      apiKey: readGeminiKey(env),
       model: env.GEMINI_MODEL?.trim() || '',
       timeoutMs: readInt(env, 'GEMINI_TIMEOUT_MS', 60_000, { min: 1000, max: 600_000 }),
+      // Fallbacks when the primary key/model fails: other models on each key, then the next key.
+      fallbackModels: readModelList(env, 'GEMINI_FALLBACK_MODELS'),
+      fallbackKeys: readFallbackKeys(env),
+      // Everything one request may spend on provider calls, fallbacks included.
+      totalTimeoutMs: readInt(env, 'GEMINI_TOTAL_TIMEOUT_MS', 85_000, { min: 5000, max: 95_000 }),
+      // A call still unanswered after this long starts the next fallback alongside it (0 turns this off).
+      hedgeAfterMs: readInt(env, 'GEMINI_HEDGE_AFTER_MS', 12_000, { min: 0, max: 60_000 }),
     },
     limits: {
       maxImageBytes,

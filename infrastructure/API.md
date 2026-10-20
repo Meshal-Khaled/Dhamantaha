@@ -1,8 +1,12 @@
 # Dhamantaha infrastructure API (v1)
 
+**Client base URL:** `https://dhamantaha.arc-homlab.com/v1`.
+Append `/receipts/analyze` for receipt uploads and `/health` for health checks.
+The website root is the private admin dashboard, with separate API settings and monitoring pages.
+
 For the app developer. The live, clickable version of this contract is at `/docs` on any running server. Its machine-readable form is `/openapi.json`, which is generated from the same schemas the server enforces.
 
-The service turns one photo or PDF of a bill into wallet-ready data. **It stores nothing.** The app shows the result for review and saves the wallet on the phone.
+The service turns one photo or PDF of a bill into wallet-ready data. **It does not store receipts or analysis results.** The app shows the result for review and saves the wallet on the phone. Provider settings and credentials remain private on The Ring; monitoring retains only bounded operational metadata in memory.
 
 - JSON, camelCase. Dates are `YYYY-MM-DD` (Gregorian). Unknown values are `null`; nothing is guessed.
 - Every response has an `X-Request-Id` header. Quote it when reporting a problem; it is not a receipt reference.
@@ -39,12 +43,14 @@ From a Capacitor app (camera or gallery):
 ```js
 import { Camera, CameraResultType } from '@capacitor/camera';
 
+const API_BASE = 'https://dhamantaha.arc-homlab.com/v1';
+
 const photo = await Camera.getPhoto({ resultType: CameraResultType.Uri, quality: 90 });
 const blob = await (await fetch(photo.webPath)).blob();
 
 const form = new FormData();
 form.append('file', blob, `receipt.${photo.format}`);
-const response = await fetch(`${API_BASE}/v1/receipts/analyze`, {
+const response = await fetch(`${API_BASE}/receipts/analyze`, {
   method: 'POST',
   body: form, // don't set Content-Type; fetch adds the multipart boundary
   headers: CLIENT_KEY ? { 'X-Client-Key': CLIENT_KEY } : {},

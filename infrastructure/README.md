@@ -1,5 +1,11 @@
 # Dhamantaha infrastructure
 
+The private control room is at `/` (API settings) and `/dashboard/monitoring`.
+Sign in using the existing Ring admin key. The app API base URL is
+`https://dhamantaha.arc-homlab.com/v1`; analysis is `POST /receipts/analyze` relative to it.
+Dashboard settings apply immediately and persist on The Ring. Operational monitoring is
+held in memory; no customer receipt data is saved.
+
 The foundation behind Dhamantaha (ضمنتها). It takes a photo or PDF of a bill, has Gemini read it, and returns wallet-ready receipt and warranty data for the Android app to save on the phone. It runs on The Ring and stores no customer data.
 
 ```
@@ -30,7 +36,7 @@ Set `ANALYSIS_PROVIDER=mock` in `.env`, then:
 npm start
 ```
 
-Open http://127.0.0.1:3000/docs, choose **POST /v1/receipts/analyze → Try it out**, pick a photo or PDF, and click **Execute**. The mock still runs every real check and preparation step; only the AI answer is a fixed sample.
+Open http://127.0.0.1:3100/docs, choose **POST /v1/receipts/analyze → Try it out**, pick a photo or PDF, and click **Execute**. The mock still runs every real check and preparation step; only the AI answer is a fixed sample.
 
 To use Gemini instead, set `ANALYSIS_PROVIDER=gemini`, `GEMINI_API_KEY`, and `GEMINI_MODEL` in `.env`. Then check real receipts from the command line:
 
@@ -46,7 +52,7 @@ All settings are environment variables; [.env.example](.env.example) documents e
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `HOST` / `PORT` | `127.0.0.1` / `3000` | Loopback by default, so paid analysis is never exposed by accident. |
+| `HOST` / `PORT` | `127.0.0.1` / `3100` | Loopback by default, so paid analysis is never exposed by accident. |
 | `CORS_ORIGINS` | none | Browser origins allowed, e.g. `https://localhost` for Capacitor Android. |
 | `CLIENT_KEYS` | none | Optional `name:key` list. When set, requests need `X-Client-Key`. |
 | `ANALYSIS_PROVIDER` | `gemini` | `mock` for app development without provider calls. |
@@ -77,7 +83,7 @@ Gemini's own processing and retention of receipts depend on Google's API terms a
 npm test
 ```
 
-There are 89 tests, using a fake provider, so no Gemini calls are made. They cover every file type and processing path, every limit and error code, real-client-IP rate limiting behind the tunnel, EXIF removal, disconnects, CORS, metadata-only logging, the response contract, the warranty rule, and the setup command.
+There are 101 tests, using a fake provider, so no Gemini calls are made. They cover receipt processing, limits and errors, privacy, the API contract, warranty rules, setup, mounted keys, per-call budget enforcement, dashboard authentication, private persistent settings, immediate provider updates, and bounded monitoring metadata.
 
 ## Deploying on The Ring
 
@@ -87,10 +93,15 @@ The short version, on The Ring:
 
 ```bash
 npm run setup                  # asks for the Gemini key (hidden) and model; writes a private .env
-docker compose up -d --build   # read-only container on 127.0.0.1:3000
+docker compose -f compose.yaml -f compose.ring.yaml up -d --build
+# Read-only container on 127.0.0.1:3100, using the Gemini key already on The Ring.
 ```
 
-Then add the tunnel public hostname `dhamantaha.arc-homlab.com` → `http://localhost:3000`.
+Then add the tunnel public hostname `dhamantaha.arc-homlab.com` → `http://localhost:3100`.
+
+The Ring override mounts its existing dashboard-managed Gemini key read-only through
+`GEMINI_API_KEY_FILE`. Keep `GEMINI_API_KEY` empty for this deployment. Recreate
+the backend container after replacing that key. Port `3000` remains free.
 
 [compose.yaml](compose.yaml) runs the service as a non-root user with a read-only root filesystem, a small in-memory `/tmp`, a 768 MB memory cap, and no Linux capabilities. Cloudflare provides the HTTPS that Android requires.
 
@@ -98,7 +109,7 @@ Before the Android app ships to real users, decide on caller authorization stron
 
 ## Phone testing on your network
 
-Run with `HOST=0.0.0.0` and `ANALYSIS_PROVIDER=mock`, then open `http://<computer-ip>:3000/docs` on the phone's browser. Anyone on that network can reach the service while it's bound this way. A Capacitor build needs HTTPS, or a debug network-security config that allows cleartext to that address.
+Run with `HOST=0.0.0.0` and `ANALYSIS_PROVIDER=mock`, then open `http://<computer-ip>:3100/docs` on the phone's browser. Anyone on that network can reach the service while it's bound this way. A Capacitor build needs HTTPS, or a debug network-security config that allows cleartext to that address.
 
 ## Layout
 

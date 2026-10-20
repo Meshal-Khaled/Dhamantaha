@@ -77,6 +77,10 @@ export function translateProviderError(err) {
       retryAfterSeconds: 60,
     });
   }
+  // Google answers 400 (not 401) for a bad or expired key; that is the key's fault, not the receipt's.
+  if (status === 400 && /API key (not valid|expired)|API_KEY_INVALID/i.test(String(err?.message))) {
+    return new AppError(502, 'analysis_unavailable', 'The analysis service is unavailable right now. Try again later.', { category: 'provider_auth' });
+  }
   if (status === 400) {
     return new AppError(422, 'unreadable_receipt', 'The analysis service could not process this file. Try a clearer photo or a different file.', {
       category: 'provider_rejected_input',

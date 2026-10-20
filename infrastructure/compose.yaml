@@ -6,9 +6,10 @@ services:
         required: false
     environment:
       HOST: 0.0.0.0
+      PORT: ${PORT:-3100}
     ports:
       # Published on loopback only; put the reverse proxy in front for HTTPS.
-      - "127.0.0.1:${PORT:-3000}:3000"
+      - "127.0.0.1:${PORT:-3100}:${PORT:-3100}"
     # Receipts must never touch disk: the container cannot write anywhere except a small /tmp in memory.
     read_only: true
     tmpfs:

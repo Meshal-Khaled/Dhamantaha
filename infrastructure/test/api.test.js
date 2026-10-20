@@ -308,6 +308,18 @@ describe('protection', () => {
     });
   });
 
+  it('enforces the daily call cap during PDF visual fallback', async () => {
+    const provider = fakeProvider(() => UNREADABLE_RESPONSE);
+    const budget = createDailyBudget(1);
+    await withServer({ provider, budget }, async ({ baseUrl }) => {
+      const refused = await analyze(baseUrl, uploadForm(makePdf([RECEIPT_LINES])));
+      assertError(refused, 503, 'daily_limit_reached');
+      assert.ok(Number(refused.response.headers.get('retry-after')) > 0);
+      assert.equal(provider.calls.length, 1);
+      assert.deepEqual(budget.usage(), { limit: 1, used: 1 });
+    });
+  });
+
   it('refuses work over the concurrency limit without reading the upload', async () => {
     let release;
     const gate = new Promise((resolve) => {

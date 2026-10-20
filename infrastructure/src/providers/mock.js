@@ -18,6 +18,7 @@ export function createMockProvider({ delayMs = 800 } = {}) {
         readable: true,
         receipt: {
           merchantName: 'مكتبة جرير - Jarir Bookstore',
+          merchantEvidence: 'Mock data: the header prints the seller name; no mall is involved.',
           purchaseDate: '2026-10-01',
           receiptNumber: 'MOCK-0001',
           currency: 'SAR',

@@ -21,7 +21,7 @@ const CLIENT_KEY_NAMES = ['android', 'web-test'];
 /** Settings for The Ring behind a Cloudflare Tunnel. */
 const RING_DEFAULTS = {
   HOST: '127.0.0.1',
-  PORT: '3000',
+  PORT: '3100',
   // cloudflared reaches the container through loopback or the Docker bridge; trusting
   // those hops lets per-IP limits see each phone's real address.
   TRUST_PROXY: 'loopback,uniquelocal',
