@@ -1,0 +1,46 @@
+name: Sync shared docs to main
+
+# Publishes the team's shared docs (UPDATES.md, the plans, AGENTS.md, ...) to main whenever any other
+# branch changes them, so everyone gets them by pulling main. The work is done by scripts/docs-sync.mjs:
+# it merges this branch's docs into main's (the log keeps every entry) and pushes one docs-only commit.
+# Keep the paths below the same as SHARED_FILES in that script; a test checks that they match.
+# GitHub does not let this workflow change files under .github/, so a change to this file reaches main
+# only when someone runs `node scripts/docs-sync.mjs --push` on their own machine.
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - UPDATES.md
+      - Mazen-Plan.md
+      - Meshal-Plan.md
+      - Resource.md
+      - AGENTS.md
+      - CLAUDE.md
+      - .gitattributes
+      - scripts/docs-sync.mjs
+      - scripts/docs-sync.test.mjs
+      - .github/workflows/sync-docs.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One run at a time, so two pushes never publish at the same moment.
+concurrency:
+  group: sync-docs-to-main
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the script needs the history to find where this branch left main
+      - name: Publish the shared docs to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          node scripts/docs-sync.mjs --push
