@@ -5,6 +5,7 @@ import { DURATION_UNITS } from '../wallet/warranty.js';
 const text = (description) => z.string().nullable().describe(description);
 const amount = (description) => z.number().nullable().describe(description);
 const isoDate = (description) => z.iso.date().nullable().describe(description);
+const unit = (description) => z.enum(DURATION_UNITS).nullable().describe(description);
 
 // ---------------------------------------------------------------- provider output
 
@@ -14,25 +15,37 @@ export const ProviderReceipt = z.object({
   receipt: z.object({
     merchantName: text('Store or seller name as printed.'),
     merchantEvidence: text('Printed text that identifies the seller, and why it is the seller rather than a mall or location. For debugging only; not returned to apps.'),
+    branchName: text('Branch, outlet, or location of this store as printed, without the merchant name.'),
+    customerServicePhone: text('Customer service, hotline, or unified number as printed; else the store phone.'),
     purchaseDate: text('Gregorian purchase date as YYYY-MM-DD.'),
     receiptNumber: text('Receipt, invoice, or transaction number as printed.'),
     currency: text('ISO 4217 code such as SAR or USD.'),
     total: amount('Final amount paid.'),
     warrantyNotes: text('Warranty statements that apply to the whole receipt, quoted from the receipt.'),
+    returnPolicy: z.object({
+      sourceText: text('The exact receipt text of the return, exchange, or refund policy.'),
+      returnDurationValue: amount('How long a purchase can be returned for a refund, only if stated.'),
+      returnDurationUnit: unit('Unit of the return period.'),
+      exchangeDurationValue: amount('How long a purchase can be exchanged, only if stated.'),
+      exchangeDurationUnit: unit('Unit of the exchange period.'),
+    }),
   }),
   items: z.array(
     z.object({
-      description: text('Product name or description as printed.'),
+      description: text('The full item line exactly as printed.'),
+      displayName: text('Short readable product name: brand, product type, and model, capacity, size, or color. No codes, category labels, prices, or stray symbols; all-caps words in normal capitalization.'),
+      category: text('Category or department label printed on the item line, if any.'),
       quantity: amount('Quantity purchased.'),
       unitPrice: amount('Price per unit.'),
       totalPrice: amount('Line total.'),
-      productIdentifier: text('SKU, model, serial number, or barcode as printed.'),
+      productIdentifier: text('SKU, model number, serial number, barcode, or other product code as printed.'),
       warranty: z.object({
         statedOnReceipt: z.boolean().describe('True only if the receipt explicitly states a warranty for this item.'),
         sourceText: text('The exact receipt text that states the warranty.'),
         durationValue: amount('Warranty length as a number, only if stated.'),
-        durationUnit: z.enum(DURATION_UNITS).nullable().describe('Unit of the warranty length.'),
+        durationUnit: unit('Unit of the warranty length.'),
         expirationDate: text('Warranty end date as YYYY-MM-DD, only if printed.'),
+        provider: text('Company that gives the warranty, only if the receipt names one other than the seller.'),
       }),
     }),
   ),
@@ -74,20 +87,25 @@ export const providerResponseSchema = toProviderJsonSchema(ProviderReceipt);
 
 const Uncertainty = z.object({ field: z.string(), note: z.string() });
 
+const duration = z.number().int().positive().nullable();
+
 export const WalletItem = z.object({
-  description: text('Product name as printed.'),
+  description: text('The item line as printed.'),
+  displayName: text('Short readable product name to show; falls back to description.'),
+  category: text('Category or department printed on the line.'),
   quantity: z.number().positive().nullable(),
   unitPrice: z.number().nullable(),
   totalPrice: z.number().nullable(),
-  productIdentifier: text('SKU, model, serial number, or barcode.'),
+  productIdentifier: text('SKU, model, serial number, barcode, or product code.'),
   warranty: z.object({
     statedOnReceipt: z.boolean().describe('True only when the receipt explicitly states a warranty; the wording is in sourceText.'),
     sourceText: text('Exact receipt wording of the warranty.'),
-    durationValue: z.number().int().positive().nullable(),
+    durationValue: duration,
     durationUnit: z.enum(DURATION_UNITS).nullable(),
     expirationDate: isoDate('Printed, or calculated from purchaseDate + duration.'),
     expirationBasis: z.enum(['printed', 'calculated']).nullable(),
     status: z.enum(['active', 'expiring_soon', 'expired', 'unknown']),
+    provider: text('Warranty provider named on the receipt when it is not the seller.'),
   }),
 });
 
@@ -96,11 +114,20 @@ export const AnalysisResponse = z.object({
   processingMethod: z.enum(['image', 'pdf_text', 'pdf_visual']),
   receipt: z.object({
     merchantName: text('Store or seller name.'),
+    branchName: text('Branch or location of the store.'),
+    customerServicePhone: text('Customer service or store phone number; digits, spaces, +, and - only.'),
     purchaseDate: isoDate('Purchase date.'),
     receiptNumber: text('Receipt or invoice number.'),
     currency: z.string().regex(/^[A-Z]{3}$/).nullable().describe('ISO 4217 code.'),
     total: amount('Final amount paid.'),
     warrantyNotes: text('Receipt-wide warranty wording.'),
+    returnPolicy: z.object({
+      sourceText: text('Exact receipt wording of the return, exchange, or refund policy.'),
+      returnDurationValue: duration,
+      returnDurationUnit: z.enum(DURATION_UNITS).nullable(),
+      exchangeDurationValue: duration,
+      exchangeDurationUnit: z.enum(DURATION_UNITS).nullable(),
+    }).describe('Durations are set only when sourceText states them.'),
   }),
   items: z.array(WalletItem),
   review: z.object({

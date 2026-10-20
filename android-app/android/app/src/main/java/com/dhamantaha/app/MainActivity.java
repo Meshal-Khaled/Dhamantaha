@@ -1,6 +1,7 @@
 package com.dhamantaha.app;
 
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.PluginHandle;
 import android.os.Bundle;
 
 public class MainActivity extends BridgeActivity {
@@ -9,11 +10,23 @@ public class MainActivity extends BridgeActivity {
     @Override public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ReceiptWalletPlugin.class);
         registerPlugin(AppLockPlugin.class);
+        registerPlugin(AppChromePlugin.class);
         super.onCreate(savedInstanceState);
         appLock = new AppLock(this);
+        refreshChrome();
     }
 
     AppLock getAppLock() { return appLock; }
+
+    void refreshChrome() {
+        if (getBridge() == null) return;
+        PluginHandle handle = getBridge().getPlugin("AppChrome");
+        if (handle != null && handle.getInstance() instanceof AppChromePlugin) {
+            AppChromePlugin chrome = (AppChromePlugin) handle.getInstance();
+            chrome.attachPageListener();
+            chrome.refreshAppearance();
+        }
+    }
 
     @Override public void onResume() {
         super.onResume();

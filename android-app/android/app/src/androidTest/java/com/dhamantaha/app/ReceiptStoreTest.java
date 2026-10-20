@@ -109,8 +109,48 @@ public class ReceiptStoreTest {
         catch (IllegalArgumentException expected) { }
     }
 
+    @Test public void savingTheSameBytesAgainReturnsTheExistingReceipt() throws Exception {
+        byte[] pdf = "%PDF-1.7 same receipt".getBytes();
+        JSONObject first = store.save("bill.pdf", "application/pdf", pdf);
+        store.updateAnalysis(first.getString("id"), new JSONObject("{\"receipt\":{\"merchantName\":\"Shop\"},\"items\":[]}"));
+        JSONObject again = store.save("bill (1).pdf", "application/pdf", pdf);
+        assertTrue(again.getBoolean("duplicate"));
+        assertEquals(first.getString("id"), again.getString("id"));
+        assertEquals("Shop", again.getJSONObject("analysis").getJSONObject("receipt").getString("merchantName"));
+        assertFalse(first.has("duplicate"));
+        assertEquals(1, store.list(0, 50).length());
+        assertEquals(1, new File(directory, "originals").list().length);
+        assertNotEquals(first.getString("id"), store.save("other.pdf", "application/pdf", "%PDF-1.7 other".getBytes()).getString("id"));
+    }
+
+    @Test public void upgradeFromVersionOneHashesExistingOriginals() throws Exception {
+        store.close();
+        removeTree(directory);
+        File originals = new File(directory, "originals");
+        assertTrue(originals.mkdirs());
+        byte[] bytes = "%PDF-1.7 saved before version 2".getBytes();
+        String id = UUID.randomUUID().toString();
+        String missing = UUID.randomUUID().toString();
+        try (FileOutputStream output = new FileOutputStream(new File(originals, id))) { output.write(bytes); }
+        try (android.database.sqlite.SQLiteDatabase v1 = android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(new File(directory, "receipts.db"), null)) {
+            v1.execSQL("CREATE TABLE receipts (id TEXT PRIMARY KEY, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, analysis TEXT)");
+            v1.execSQL("CREATE INDEX receipts_created ON receipts(created_at DESC, id)");
+            v1.execSQL("INSERT INTO receipts VALUES (?, 'old.pdf', 'application/pdf', ?, 1, 1, NULL)", new Object[]{id, bytes.length});
+            v1.execSQL("INSERT INTO receipts VALUES (?, 'gone.pdf', 'application/pdf', 1, 2, 2, NULL)", new Object[]{missing});
+            v1.setVersion(1);
+        }
+        store = new ReceiptStore(context, directory);
+        assertEquals(ReceiptStore.VERSION, store.getReadableDatabase().getVersion());
+        assertEquals(2, store.list(0, 50).length());
+        JSONObject again = store.save("old copy.pdf", "application/pdf", bytes);
+        assertTrue(again.getBoolean("duplicate"));
+        assertEquals(id, again.getString("id"));
+        assertEquals(2, store.list(0, 50).length());
+    }
+
     @Test public void paginationDoesNotLoadFileBytes() throws Exception {
-        for (int index = 0; index < 6; index++) store.save("receipt-" + index + ".pdf", "application/pdf", new byte[]{1});
+        // Distinct bytes: identical files would be one receipt.
+        for (int index = 0; index < 6; index++) store.save("receipt-" + index + ".pdf", "application/pdf", new byte[]{(byte) (index + 1)});
         assertEquals(4, store.list(0, 4).length());
         assertEquals(2, store.list(4, 4).length());
         assertFalse(store.list(0, 4).getJSONObject(0).has("data"));

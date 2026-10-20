@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { endDate, products, walletSummary, editAnalysis, warrantyProgress } from '../src/wallet-view.js';
+import { endDate, products, walletSummary, editAnalysis, warrantyProgress, warrantyTone, receiptCards, linePrice, itemName, cardSearchText } from '../src/wallet-view.js';
 
 test('policy dates clamp month ends and leap years, and reject invalid input', () => {
   assert.equal(endDate('2026-01-31', 1, 'months'), '2026-02-28');
@@ -21,7 +21,8 @@ test('dashboard uses real deadlines, includes the final day, and excludes unknow
   const result = walletSummary(records, new Date(2026, 9, 20));
   assert.equal(result.active, 2);
   assert.equal(result.upcoming.length, 1);
-  assert.equal(result.upcoming[0].returnDays, 0);
+  assert.equal(result.upcoming[0].nextDeadline, 0);
+  assert.equal(result.upcoming[0].returnEntry.returnDays, 0);
   assert.equal(result.entries[2].warrantyDays, null);
 });
 
@@ -73,4 +74,79 @@ test('warranty progress shrinks with remaining days and clamps at the start and 
   assert.equal(warrantyProgress('2026-10-01', null), null);
   assert.equal(warrantyProgress('2026-02-30', '2026-10-21'), null);
   assert.equal(warrantyProgress('2026-10-21', '2026-10-21'), 0);
+});
+
+test('warranty colors reflect the remaining fraction and imminent deadlines', () => {
+  assert.equal(warrantyTone(324, 89), 'healthy');
+  assert.equal(warrantyTone(135, 37), 'warning');
+  assert.equal(warrantyTone(53, 7.3), 'critical');
+  assert.equal(warrantyTone(100, 50), 'warning');
+  assert.equal(warrantyTone(100, 20), 'critical');
+  assert.equal(warrantyTone(30, 90), 'warning');
+  assert.equal(warrantyTone(7, 90), 'critical');
+  assert.equal(warrantyTone(0, 0), 'critical');
+  assert.equal(warrantyTone(-1, 0), 'ended');
+  assert.equal(warrantyTone(null, null), 'unknown');
+  assert.equal(warrantyTone(NaN, 50), 'unknown');
+  assert.equal(warrantyTone(100, null), 'healthy');
+});
+
+test('a receipt with several items is one card that leads with the next warranty to end', () => {
+  const records = [{ id: 'multi', name: 'receipt.pdf', analysis: { receipt: { merchantName: 'Jarir', purchaseDate: '2026-10-01', total: null, currency: 'SAR' }, items: [
+    { displayName: 'Laptop', totalPrice: 3999, warranty: { expirationDate: '2028-10-01' } },
+    { description: 'CABLE USB-C', quantity: 2, unitPrice: 25, warranty: { expirationDate: '2026-11-01' } },
+    { description: 'Bag', totalPrice: 149.5, warranty: { expirationDate: '2026-10-10' } },
+  ] } }, { id: 'offline', name: 'photo.jpg', analysis: null }];
+  const [card, offline] = receiptCards(records, new Date(2026, 9, 20));
+  assert.equal(receiptCards(records).length, 2);
+  assert.equal(card.itemCount, 3);
+  assert.deepEqual(card.names, ['Laptop', 'CABLE USB-C', 'Bag']);
+  assert.equal(card.lead.item.description, 'CABLE USB-C');
+  assert.equal(card.coveredCount, 2);
+  assert.equal(card.total, 4198.5, 'a missing receipt total is the sum of the line totals');
+  assert.equal(offline.analyzed, false);
+  assert.equal(offline.itemCount, 0);
+  const summary = walletSummary(records, new Date(2026, 9, 20));
+  assert.equal(summary.upcoming.length, 1, 'one receipt, not one entry per item');
+  assert.equal(summary.active, 2);
+});
+
+test('line prices derive the missing unit price or total and round to cents', () => {
+  assert.deepEqual(linePrice({ quantity: 2, unitPrice: 50 }), { quantity: 2, unitPrice: 50, total: 100 });
+  assert.deepEqual(linePrice({ quantity: 3, totalPrice: 100 }), { quantity: 3, unitPrice: 33.33, total: 100 });
+  assert.deepEqual(linePrice({ totalPrice: 20 }), { quantity: null, unitPrice: 20, total: 20 });
+  assert.deepEqual(linePrice({ quantity: 0, unitPrice: null, totalPrice: null }), { quantity: null, unitPrice: null, total: null });
+});
+
+test('items show the short display name and repair Arabic presentation forms in older analyses', () => {
+  assert.equal(itemName({ description: 'MAGSAFE PHONE GRIP/STAND BL#WP@7', displayName: 'MagSafe Phone Grip/Stand' }), 'MagSafe Phone Grip/Stand');
+  assert.equal(itemName({ description: 'ﻣﻠﺤﻘﺎﺕ ﺍﻟﻬﻮﺍﺗﻒ' }), 'ملحقات الهواتف');
+  assert.equal(itemName({ description: '  ' }), null);
+  const [card] = receiptCards([{ id: 'r', name: 'r.pdf', analysis: { receipt: { merchantName: 'eXtra', branchName: 'فرع العليا' }, items: [{ description: 'ﻣﻠﺤﻘﺎﺕ', category: 'Accessories' }] } }]);
+  for (const query of ['extra', 'العليا', 'ملحقات', 'accessories', 'r.pdf']) assert.ok(cardSearchText(card).includes(query), query);
+});
+
+test('a printed return policy sets return deadlines unless the owner entered one for that item', () => {
+  const analysis = { receipt: { purchaseDate: '2026-10-18', returnPolicy: { sourceText: 'Refund within 3 days, exchange within 7 days.', returnDurationValue: 3, returnDurationUnit: 'days', exchangeDurationValue: 7, exchangeDurationUnit: 'days' } }, items: [
+    { description: 'Printed policy' },
+    { description: 'Owner policy', localPolicy: { returns: { amount: 14, unit: 'days' } } },
+  ] };
+  const [printed, owner] = products([{ id: 'p', analysis }], new Date(2026, 9, 20));
+  assert.equal(printed.returnEnd, '2026-10-21');
+  assert.equal(printed.returnSource, 'receipt');
+  assert.equal(owner.returnEnd, '2026-11-01');
+  assert.equal(owner.returnSource, 'local');
+  const [card] = receiptCards([{ id: 'p', analysis }], new Date(2026, 9, 20));
+  assert.equal(card.returnEntry.returnDays, 1);
+});
+
+test('editing a name keeps the printed line, and editing a total re-derives the unit price', () => {
+  const previous = { receipt: { currency: 'SAR' }, items: [{ description: 'CABLE USB-C 1M', displayName: 'USB-C Cable', quantity: 2, unitPrice: 25, totalPrice: 50 }], review: { missingFields: [], uncertainties: [] } };
+  const values = { description: 'Charging cable', merchant: '', price: '50', date: '', warrantyAmount: '', warrantyUnit: 'months', returnAmount: '', returnUnit: 'days' };
+  const renamed = editAnalysis(previous, values);
+  assert.equal(renamed.items[0].displayName, 'Charging cable');
+  assert.equal(renamed.items[0].description, 'CABLE USB-C 1M');
+  assert.equal(renamed.items[0].unitPrice, 25);
+  const repriced = editAnalysis(previous, { ...values, price: '60' });
+  assert.deepEqual(linePrice(repriced.items[0]), { quantity: 2, unitPrice: 30, total: 60 });
 });

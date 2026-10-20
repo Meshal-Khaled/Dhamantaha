@@ -1,105 +1,227 @@
-import { useState } from 'react';
-import { products, walletSummary } from './wallet-view.js';
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
+import { Check, ChevronDown, CircleCheck, FileText, Phone, Plus, ReceiptText, Search, ShieldCheck, ShieldQuestion, Undo2 } from 'lucide-react';
+import { cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary, warrantyTone } from './wallet-view.js';
+import { fieldLabel, formatDate, formatMoney, formatNumber } from './format.js';
 import AppLockSettings from './AppLockSettings.jsx';
 
 export const translate = (arabic) => (en, ar) => arabic ? ar : en;
-const amount = (value, currency) => value == null ? '—' : `${value} ${currency || 'SAR'}`;
+
+const deadlineText = (days, arabic) => {
+  const t = translate(arabic);
+  if (days === null) return t('Not specified', 'غير محدد');
+  if (days === 0) return t('Last day', 'اليوم الأخير');
+  const n = Math.abs(days);
+  const count = formatNumber(n, arabic);
+  if (days < 0) return arabic ? (n === 1 ? 'انتهى منذ يوم' : n === 2 ? 'انتهى منذ يومين' : `انتهى منذ ${count} ${n <= 10 ? 'أيام' : 'يومًا'}`) : `Ended ${count} ${n === 1 ? 'day' : 'days'} ago`;
+  return arabic ? (n === 1 ? 'يوم واحد متبقٍ' : n === 2 ? 'يومان متبقيان' : n <= 10 ? `${count} أيام متبقية` : `${count} يومًا متبقيًا`) : `${count} ${n === 1 ? 'day' : 'days'} left`;
+};
+const coverageClass = (days) => days !== null && days < 0 ? 'ended' : days !== null && days <= 30 ? 'urgent' : '';
+const itemCountText = (count, arabic) => !arabic ? `${formatNumber(count)} ${count === 1 ? 'item' : 'items'}`
+  : count === 1 ? 'منتج واحد' : count === 2 ? 'منتجان' : `${formatNumber(count, true)} ${count <= 10 ? 'منتجات' : 'منتجًا'}`;
 
 export function Deadline({ date, days, arabic }) {
-  const t = translate(arabic);
-  if (days === null) return <strong>{t('Not specified', 'غير محدد')}</strong>;
-  return <strong title={date}>{days < 0 ? t(`Ended ${-days} days ago`, `انتهى منذ ${-days} يوم`) : days === 0 ? t('Last day', 'اليوم الأخير') : t(`${days} days left`, `${days} يوم متبقٍ`)}</strong>;
+  return <strong title={days === null ? undefined : formatDate(date, arabic)}>{deadlineText(days, arabic)}</strong>;
 }
 
-function WarrantyTimer({ entry, arabic }) {
+function WarrantyTimer({ entry, arabic, label }) {
   const t = translate(arabic);
-  const status = entry.warrantyDays !== null && entry.warrantyDays < 0 ? 'ended' : entry.warrantyDays !== null && entry.warrantyDays <= 30 ? 'urgent' : '';
-  return <div className={`time-cell warranty-timer ${status}`}>
-    <div className="warranty-heading"><span>{t('Warranty', 'الضمان')}</span><Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></div>
-    <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${entry.warrantyProgress}%`}>
-      <span className="warranty-fill" style={{ width: `${entry.warrantyProgress ?? 0}%` }} />
+  const status = warrantyTone(entry.warrantyDays, entry.warrantyProgress);
+  return <div className={`warranty-timer ${status}`}>
+    <div className="warranty-heading"><span>{label || t('Warranty', 'الضمان')} <Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></span><ShieldCheck aria-hidden="true" size={17} /></div>
+    <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${formatNumber(entry.warrantyProgress, arabic)}%`}>
+      <span className="warranty-fill" style={{ transform: `scaleX(${(entry.warrantyProgress ?? 0) / 100})` }} />
     </div>
   </div>;
 }
 
-export function ProductCard({ entry, arabic, disabled, onOpen }) {
+/** One card per receipt: who, when, how much, and the next warranty. Everything else is in the details. */
+export function ReceiptCard({ card, arabic, disabled, onOpen }) {
   const t = translate(arabic);
-  return <button className="product-card" disabled={disabled} onClick={() => onOpen(entry.record.id)}>
-    <div className="product-top"><span className="product-emoji" aria-hidden="true">{entry.record.mime === 'application/pdf' ? '▤' : '▧'}</span>
-      <span className="product-title"><strong>{entry.item.description || entry.record.name}</strong><small>{entry.receipt.merchantName || t('Saved on this device', 'محفوظة على هذا الجهاز')} · {entry.receipt.purchaseDate || new Date(entry.record.createdAt).toLocaleDateString(arabic ? 'ar-SA-u-ca-gregory' : 'en-GB')}</small></span>
-      <span className="product-price">{amount(entry.item.totalPrice, entry.receipt.currency)}</span></div>
-    <div className="time-grid"><WarrantyTimer entry={entry} arabic={arabic} />
-      <div className={`time-cell ${entry.returnDays !== null && entry.returnDays < 0 ? 'ended' : entry.returnDays !== null && entry.returnDays <= 30 ? 'urgent' : ''}`}><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div></div>
-    <div className="refund-line"><span>{entry.record.analysis ? t('Saved receipt', 'فاتورة محفوظة') : t('Ready to analyze', 'جاهزة للتحليل')}</span><span className="refund-pill">{t('View details', 'عرض التفاصيل')} ›</span></div>
+  const days = card.lead.warrantyDays;
+  const state = days === null ? t('Terms to review', 'مراجعة الشروط') : days < 0 ? t('Warranty ended', 'انتهى الضمان') : days <= 30 ? t('Ending soon', 'ينتهي قريبًا') : t('Warranty active', 'ضمان سارٍ');
+  const title = card.receipt.merchantName || (card.itemCount === 1 && card.names[0]) || card.record.name;
+  const subtitle = !card.analyzed ? t('Not read yet. Open it to analyze.', 'لم تُقرأ بعد. افتحها لتحليلها.')
+    : card.names.length && !(card.itemCount === 1 && title === card.names[0]) ? card.names.join(arabic ? '، ' : ', ') : t('Store not specified', 'المتجر غير محدد');
+  return <button className="product-card receipt-card" disabled={disabled} onClick={() => onOpen(card.record.id)}>
+    <div className="product-top">
+      <span className="product-emoji" aria-hidden="true">{card.record.mime === 'application/pdf' ? <ReceiptText size={22} /> : <FileText size={22} />}</span>
+      <span className="product-title"><strong><bdi>{title}</bdi></strong><small><bdi>{subtitle}</bdi></small></span>
+      <span className="product-price"><bdi>{formatMoney(card.total, card.receipt.currency, arabic)}</bdi></span>
+    </div>
+    <div className="product-meta"><span>{formatDate(card.receipt.purchaseDate || card.record.createdAt, arabic)}{card.itemCount > 1 && ` · ${itemCountText(card.itemCount, arabic)}`}</span><span className={`coverage-state ${coverageClass(days)}`}><span aria-hidden="true" />{state}</span></div>
+    <WarrantyTimer entry={card.lead} arabic={arabic} label={card.coveredCount > 1 ? t('Next warranty end', 'أقرب انتهاء ضمان') : undefined} />
+    {card.returnEntry && <div className="return-line"><span>{t('Return window', 'مهلة الإرجاع')}</span><Deadline date={card.returnEntry.returnEnd} days={card.returnEntry.returnDays} arabic={arabic} /></div>}
   </button>;
 }
 
-export function HomeScreen({ saved, arabic, busy, loading, hasMore, onNavigate, onOpen, onLoadMore, brand }) {
+export function HomeScreen({ saved, arabic, busy, loading, onNavigate, onOpen }) {
   const t = translate(arabic);
   const summary = walletSummary(saved);
   return <>
-    <p className="hello">{t('Welcome back', 'أهلًا بك 👋')}</p><h1 className="title">{t('Never miss a warranty or return deadline', 'لا تفوّت موعد الضمان أو الإرجاع')}</h1>
-    <section className="hero"><div className="copy"><h2>{t('All your purchases, in one place', 'كل مشترياتك تحت السيطرة')}</h2><p>{t('Keep your receipts and track upcoming deadlines.', 'احفظ فواتيرك وتابع الضمان والإرجاع الذي يقترب موعد انتهائه.')}</p><button className="btn white" disabled={busy} onClick={() => onNavigate('add')}>＋ {t('Add receipt', 'أضف فاتورة')}</button></div><img src={brand} alt="" /></section>
-    <div className="stats"><div className="stat"><strong>{saved.length}{hasMore ? '+' : ''}</strong><span>{t('Receipts', 'فواتير')}</span></div><div className="stat"><strong>{summary.active}{hasMore ? '+' : ''}</strong><span>{t('Active warranties', 'ضمانات سارية')}</span></div><div className="stat"><strong>{summary.upcoming.length}{hasMore ? '+' : ''}</strong><span>{t('Upcoming deadlines', 'مواعيد قريبة')}</span></div></div>
-    <div className="section"><h2>{t('Ending soon', 'تنتهي قريبًا')}</h2><button className="link" disabled={busy} onClick={() => onNavigate('saved')}>{t('All receipts', 'جميع الفواتير')} ←</button></div>
-    {loading ? <p role="status">{t('Loading receipts…', 'جارٍ تحميل الفواتير…')}</p> : summary.upcoming.length ? summary.upcoming.slice(0, 6).map((entry) => <ProductCard key={`${entry.record.id}-${entry.index}`} entry={entry} arabic={arabic} disabled={busy} onOpen={onOpen} />) : <div className="notice"><span className="symbol" aria-hidden="true">✓</span><div><strong>{t('No deadlines in the next 30 days', 'لا توجد مواعيد تنتهي خلال ٣٠ يومًا')}</strong><p>{t('Add a receipt and confirm its warranty and return terms.', 'أضف فاتورة وأكّد مدد الضمان والإرجاع حسب شروط المتجر.')}</p></div></div>}
-    {hasMore && <button className="secondary" disabled={busy || loading} onClick={onLoadMore}>{t('Load more receipts to include their deadlines', 'تحميل المزيد من الفواتير لعرض مواعيدها')}</button>}
-    <p className="tip">{t('Your originals and saved results stay on this device and work offline.', 'الفواتير الأصلية والنتائج المحفوظة تبقى على جهازك وتعمل دون اتصال.')}</p>
+    <div className="page-heading"><div><p className="hello">{t('Welcome back', 'أهلًا بك')}</p><h1 className="title">{t('Your warranty wallet', 'محفظة ضماناتك')}</h1></div><ShieldCheck className="heading-symbol" aria-hidden="true" /></div>
+    <div className="stats"><div className="stat"><strong>{loading ? '—' : formatNumber(saved.length, arabic)}</strong><span>{t('Receipts', 'فواتير')}</span></div><div className="stat"><strong>{loading ? '—' : formatNumber(summary.active, arabic)}</strong><span>{t('Active warranties', 'ضمانات سارية')}</span></div><div className="stat"><strong>{loading ? '—' : formatNumber(summary.upcoming.length, arabic)}</strong><span>{t('Upcoming deadlines', 'مواعيد قريبة')}</span></div></div>
+    <section className="quick-add"><div><strong>{t('Keep your next purchase covered', 'احفظ فاتورتك القادمة')}</strong><p>{t('A photo or PDF is all you need.', 'صورة أو PDF، والباقي علينا.')}</p></div><button className="btn white" disabled={busy} onClick={() => onNavigate('add')}><Plus size={18} aria-hidden="true" />{t('Add receipt', 'إضافة فاتورة')}</button></section>
+    <div className="section"><h2>{t('Ending soon', 'تنتهي قريبًا')}</h2><button className="link" disabled={busy} onClick={() => onNavigate('saved')}>{t('All receipts', 'كل الفواتير')}</button></div>
+    {loading ? <p role="status">{t('Loading receipts…', 'جارٍ تحميل الفواتير…')}</p> : summary.upcoming.length ? summary.upcoming.slice(0, 6).map((card) => <ReceiptCard key={card.record.id} card={card} arabic={arabic} disabled={busy} onOpen={onOpen} />) : <div className="notice"><CircleCheck aria-hidden="true" /><div><strong>{t('No deadlines in the next 30 days', 'لا توجد مواعيد خلال ٣٠ يومًا')}</strong><p>{t('Your saved warranty dates will appear here when they are close.', 'ستظهر مواعيد الضمان المحفوظة هنا عندما تقترب.')}</p></div></div>}
+    {!loading && !summary.upcoming.length && summary.cards.length > 0 && <><div className="section"><h2>{t('Recent purchases', 'آخر مشترياتك')}</h2></div>{summary.cards.slice(0, 2).map((card) => <ReceiptCard key={card.record.id} card={card} arabic={arabic} disabled={busy} onOpen={onOpen} />)}</>}
   </>;
 }
 
-export function ReceiptsScreen({ saved, arabic, busy, loading, hasMore, onOpen, onLoadMore, onAdd }) {
+export function ReceiptsScreen({ saved, arabic, busy, loading, onOpen, onAdd }) {
   const t = translate(arabic);
   const [query, setQuery] = useState('');
-  const entries = products(saved).filter((entry) => `${entry.item.description || ''} ${entry.record.name} ${entry.receipt.merchantName || ''}`.toLocaleLowerCase().includes(query.toLocaleLowerCase()));
-  return <><h1 className="title">{t('Your receipts', 'فواتيرك')}</h1><p className="desc">{t('All your purchases, saved privately on this device.', 'كل مشترياتك، محفوظة بخصوصية على هذا الجهاز.')}</p>
-    <label className="search"><span className="sr-only">{t('Search receipts', 'البحث في الفواتير')}</span><input type="search" placeholder={t('Search by product or store', 'ابحث باسم المنتج أو المتجر')} value={query} onChange={(event) => setQuery(event.target.value)} /></label>
-    {loading ? <p role="status">{t('Loading…', 'جارٍ التحميل…')}</p> : entries.length ? entries.map((entry) => <ProductCard key={`${entry.record.id}-${entry.index}`} entry={entry} arabic={arabic} disabled={busy} onOpen={onOpen} />) : <section className="card empty"><h2>{t('No receipts found', 'لا توجد فواتير')}</h2><p>{t('Add a photo or PDF to start your wallet.', 'أضف صورة أو PDF لتبدأ محفظتك.')}</p><button className="btn" onClick={onAdd}>{t('Add receipt', 'إضافة فاتورة')}</button></section>}
-    {hasMore && <button className="secondary full" disabled={busy || loading} onClick={onLoadMore}>{t('Load more', 'تحميل المزيد')}</button>}
-    <p className="tip">{t('Uninstalling the app or clearing its data removes saved receipts.', 'حذف التطبيق أو مسح بياناته يزيل الفواتير المحفوظة.')}</p></>;
-}
-
-export function SettingsScreen({ settings, appearance, onAppearance, onSave, arabic, health, onRetry, log }) {
-  const t = translate(arabic);
-  const [draft, setDraft] = useState(settings);
-  const [message, setMessage] = useState('');
-  const choices = (key, options) => <div className="choice-row">{options.map(([value, label]) => <button key={value} className={`choice ${appearance[key] === value ? 'chosen' : ''}`} aria-pressed={appearance[key] === value} onClick={() => onAppearance({ ...appearance, [key]: value })}>{label}</button>)}</div>;
-  return <><h1 className="title">{t('Settings', 'الإعدادات')}</h1><p className="desc">{t('Make your wallet feel like yours.', 'خصّص محفظتك بالطريقة التي تناسبك.')}</p>
-    <section className="settings-section"><h2>{t('Appearance', 'المظهر')}</h2><div className="card settings-card"><strong>{t('Theme', 'وضع العرض')}</strong>{choices('theme', [['light', t('Light', 'فاتح')], ['dark', t('Dark', 'داكن')]])}<strong>{t('Text size', 'حجم الخط')}</strong>{choices('font', [['normal', t('Normal', 'عادي')], ['large', t('Large', 'كبير')]])}</div></section>
-    <section className="settings-section"><h2>{t('Language', 'اللغة')}</h2><div className="card settings-card">{choices('language', [['ar', 'العربية'], ['en', 'English']])}</div></section>
-    <section className="card"><AppLockSettings arabic={arabic} /><p className="tip">{t('Deadline reminders appear on Home. Scheduled phone notifications are not enabled in this version.', 'تظهر المواعيد القريبة في الرئيسية. إشعارات الهاتف المجدولة غير مفعّلة في هذه النسخة.')}</p></section>
-    <details className="card connection"><summary>{t('Analysis connection', 'اتصال تحليل الفواتير')}</summary><p className="tip">{health.state === 'ok' ? t('Connected to The Ring', 'متصل بـ The Ring') : health.state === 'checking' ? t('Connecting…', 'جارٍ الاتصال…') : t('Offline. Saved receipts are still available.', 'غير متصل. الفواتير المحفوظة متاحة.')}</p><button className="link" onClick={onRetry}>{t('Check connection', 'فحص الاتصال')}</button>
-      <form onSubmit={(event) => { event.preventDefault(); if (onSave({ baseUrl: draft.baseUrl.trim(), clientKey: draft.clientKey.trim() })) setMessage(t('Connection saved', 'تم حفظ الاتصال')); }}>
-        <label className="field">{t('API address', 'عنوان الخدمة')}<input dir="ltr" type="url" required value={draft.baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} autoCapitalize="none" autoCorrect="off" /></label>
-        <label className="field">{t('Client key', 'مفتاح التطبيق')}<input dir="ltr" type="password" value={draft.clientKey} onChange={(e) => setDraft({ ...draft, clientKey: e.target.value })} autoCapitalize="none" autoCorrect="off" autoComplete="off" /></label><button className="btn full">{t('Save connection', 'حفظ الاتصال')}</button><p role="status">{message}</p></form>
-      <details className="debug"><summary>{t('Request diagnostics', 'تشخيص الطلبات')}</summary><pre dir="ltr">{log.map((entry) => entry.line).join('\n') || t('No requests yet.', 'لا توجد طلبات بعد.')}</pre></details></details>
+  const [visible, setVisible] = useState(30);
+  const deferred = useDeferredValue(query);
+  const normalized = deferred.trim().normalize('NFKC').toLocaleLowerCase();
+  const cards = receiptCards(saved).filter((card) => cardSearchText(card).includes(normalized));
+  return <>
+    <div className="page-heading"><div><h1 className="title">{t('Your receipts', 'فواتيرك')}</h1><p className="desc">{t('All your purchases, in one place.', 'كل مشترياتك، في مكان واحد.')}</p></div><span className="count-badge">{formatNumber(saved.length, arabic)} {t('receipts', 'فواتير')}</span></div>
+    <label className="search"><Search size={19} aria-hidden="true" /><input type="search" placeholder={t('Search by product or store…', 'ابحث بالمنتج أو المتجر…')} aria-label={t('Search all receipts', 'البحث في جميع الفواتير')} value={query} onChange={(event) => { setQuery(event.target.value); setVisible(30); }} /></label>
+    <div className="receipt-list" aria-busy={query !== deferred}>
+      {loading ? <div className="loading-state" role="status">{t('Loading receipts…', 'جارٍ تحميل الفواتير…')}</div> : cards.length ? cards.slice(0, visible).map((card) => <ReceiptCard key={card.record.id} card={card} arabic={arabic} disabled={busy} onOpen={onOpen} />) : <section className="card empty"><ReceiptText size={32} aria-hidden="true" /><h2>{query ? t('No matching receipts', 'لا توجد فواتير مطابقة') : t('Your wallet starts here', 'محفظتك تبدأ هنا')}</h2><p>{query ? t('Try another product, store, or filename.', 'جرّب اسم منتج أو متجر أو ملف آخر.') : t('Add a photo or PDF. Your original stays on this device.', 'أضف صورة أو PDF. يبقى الأصل محفوظًا على جهازك.')}</p>{query ? <button className="secondary" onClick={() => setQuery('')}>{t('Clear search', 'مسح البحث')}</button> : <button className="btn" onClick={onAdd}><Plus size={18} aria-hidden="true" />{t('Add receipt', 'إضافة فاتورة')}</button>}</section>}
+    </div>
+    {cards.length > visible && <button className="secondary full" onClick={() => setVisible((count) => count + 30)}>{t('Show more', 'عرض المزيد')}</button>}
+    <p className="tip privacy-note"><ShieldCheck size={15} aria-hidden="true" />{t('Saved privately on this device. Clearing app data removes your receipts.', 'محفوظة بخصوصية على جهازك. مسح بيانات التطبيق يزيل الفواتير.')}</p>
   </>;
 }
 
-export function ResultView({ body, arabic }) {
+export function SettingsScreen({ settings, appearance, onAppearance, onSave, onGuard, arabic, health, onRetry, log }) {
   const t = translate(arabic);
+  const [draft, setDraft] = useState(settings);
+  const [baseline, setBaseline] = useState(settings);
+  const [message, setMessage] = useState('');
+  const dirty = draft.baseUrl !== baseline.baseUrl || draft.clientKey !== baseline.clientKey;
+  const form = useRef(null);
+  const save = useCallback(async () => {
+    if (!form.current.reportValidity()) return false;
+    const next = { baseUrl: draft.baseUrl.trim(), clientKey: draft.clientKey.trim() };
+    if (!onSave(next)) return false;
+    setDraft(next); setBaseline(next); setMessage(t('Connection saved', 'تم حفظ الاتصال')); return true;
+  }, [draft, onSave, arabic]);
+  useEffect(() => { onGuard({ dirty, save }); }, [dirty, save, onGuard]);
+  useEffect(() => () => onGuard({ dirty: false, save: async () => true }), [onGuard]);
+  const choices = (key, options) => <div className="choice-row">{options.map(([value, label]) => <button type="button" key={value} className={`choice ${appearance[key] === value ? 'chosen' : ''}`} aria-pressed={appearance[key] === value} onClick={() => onAppearance({ ...appearance, [key]: value })}>{appearance[key] === value && <Check size={16} aria-hidden="true" />}{label}</button>)}</div>;
+  return <>
+    <h1 className="title">{t('Settings', 'الإعدادات')}</h1><p className="desc">{t('A wallet that feels like yours.', 'محفظتك، بالطريقة التي تناسبك.')}</p>
+    <section className="settings-section"><h2>{t('Appearance', 'المظهر')}</h2><div className="card settings-card"><strong>{t('Theme', 'وضع العرض')}</strong>{choices('theme', [['light', t('Light', 'فاتح')], ['dark', t('Dark', 'داكن')]])}<strong>{t('Text size', 'حجم الخط')}</strong>{choices('font', [['normal', t('Normal', 'عادي')], ['large', t('Large', 'كبير')]])}</div></section>
+    <section className="settings-section"><h2>{t('Language', 'اللغة')}</h2><div className="card settings-card">{choices('language', [['ar', 'العربية'], ['en', 'English']])}</div></section>
+    <section className="settings-section"><h2>{t('Receipt details', 'تفاصيل الفاتورة')}</h2><div className="card settings-card"><strong>{t('Price of an item bought more than once', 'سعر المنتج المشترى بأكثر من قطعة')}</strong>{choices('priceView', [['unit', t('Quantity × price', 'الكمية × السعر')], ['total', t('Item total', 'إجمالي المنتج')]])}<p className="tip">{t('Example', 'مثال')}: <bdi>{appearance.priceView === 'total' ? formatMoney(100, 'SAR', arabic) : `${formatNumber(2, arabic)} × ${formatMoney(50, 'SAR', arabic)}`}</bdi></p></div></section>
+    <section className="card"><AppLockSettings arabic={arabic} /></section>
+    <p className="tip">{t('Upcoming deadlines appear on Home. Scheduled phone notifications are not enabled yet.', 'تظهر المواعيد القريبة في الرئيسية. إشعارات الهاتف المجدولة غير مفعّلة بعد.')}</p>
+    <details className="card connection"><summary>{t('Analysis connection', 'اتصال تحليل الفواتير')}</summary><p className="tip">{health.state === 'ok' ? t('Connected to The Ring', 'متصل بـ The Ring') : health.state === 'checking' ? t('Connecting…', 'جارٍ الاتصال…') : t('Offline. Your saved receipts are available.', 'غير متصل. الفواتير المحفوظة متاحة.')}</p><button className="link" onClick={onRetry}>{t('Check connection', 'فحص الاتصال')}</button>
+      <form ref={form} onSubmit={(event) => { event.preventDefault(); save(); }}>
+        <label className="field">{t('API address', 'عنوان الخدمة')}<input dir="ltr" type="url" required name="api-address" value={draft.baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} /></label>
+        <label className="field">{t('Client key', 'مفتاح التطبيق')}<input dir="ltr" type="password" name="client-key" value={draft.clientKey} onChange={(e) => setDraft({ ...draft, clientKey: e.target.value })} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} /></label><button className="btn full" disabled={!dirty}>{t('Save connection', 'حفظ الاتصال')}</button><p role="status">{message}</p>
+      </form><details className="debug"><summary>{t('Request diagnostics', 'تشخيص الطلبات')}</summary><pre dir="ltr">{log.map((entry) => entry.line).join('\n') || t('No requests yet.', 'لا توجد طلبات بعد.')}</pre></details>
+    </details>
+  </>;
+}
+
+/** "2 × SAR 50.00" or "SAR 100.00", as chosen in Settings. A single item shows its price either way. */
+function ItemPrice({ item, currency, arabic, priceView }) {
+  const { quantity, unitPrice, total } = linePrice(item);
+  if (priceView === 'unit' && quantity > 1 && unitPrice !== null) return <bdi>{formatNumber(quantity, arabic)} × {formatMoney(unitPrice, currency, arabic)}</bdi>;
+  return <bdi>{formatMoney(total, currency, arabic)}</bdi>;
+}
+
+function ItemDetails({ entry, currency, arabic, priceView, open }) {
+  const t = translate(arabic);
+  const { item } = entry;
+  const name = itemName(item) || t('Product', 'منتج');
+  const { quantity } = linePrice(item);
+  const printed = item.description?.normalize('NFKC').trim();
+  const provider = item.warranty?.provider;
+  return <details className="card item-card" id={`wallet-product-${entry.index}`} open={open}>
+    <summary>
+      <span className="product-title"><strong><bdi>{name}</bdi></strong><small><span className={`coverage-state ${coverageClass(entry.warrantyDays)}`}><span aria-hidden="true" />{t('Warranty', 'الضمان')}: {deadlineText(entry.warrantyDays, arabic)}</span>{priceView === 'total' && quantity > 1 && <span>{t('Qty', 'الكمية')} {formatNumber(quantity, arabic)}</span>}</small></span>
+      <span className="product-price"><ItemPrice item={item} currency={currency} arabic={arabic} priceView={priceView} /></span>
+      <ChevronDown className="chevron" size={18} aria-hidden="true" />
+    </summary>
+    <div className="item-body">
+      {entry.warrantyDays === null && !item.warranty?.sourceText && !item.localPolicy?.warranty ? <p className="tip no-warranty">{t('The receipt states no warranty for this item. You can add one with Edit below.', 'لا تذكر الفاتورة ضمانًا لهذا المنتج. يمكنك إضافته من زر التعديل أدناه.')}</p> : <WarrantyTimer entry={entry} arabic={arabic} />}
+      {(provider || item.productIdentifier || item.category) && <dl className="facts">
+        {provider && <><dt>{t('Warranty provider', 'مزوّد الضمان')}</dt><dd><bdi>{provider}</bdi></dd></>}
+        {item.productIdentifier && <><dt>{t('Product code', 'رمز المنتج')}</dt><dd><bdi>{item.productIdentifier}</bdi></dd></>}
+        {item.category && <><dt>{t('Category', 'الفئة')}</dt><dd><bdi>{item.category.normalize('NFKC')}</bdi></dd></>}
+      </dl>}
+      {item.warranty?.sourceText && <p className="policy-text" dir="auto">{item.warranty.sourceText}</p>}
+      {entry.returnSource === 'local' && <div className="return-line"><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div>}
+      {(item.localPolicy?.warranty || item.localPolicy?.returns) && <p className="tip">{t('Dates use the policy durations you entered. Confirm the store’s terms.', 'التواريخ حسب المدد التي أدخلتها. تحقق من شروط المتجر.')}</p>}
+      {printed && printed !== name && <p className="tip printed-line"><span>{t('As printed', 'كما في الفاتورة')}:</span> <bdi dir="auto">{printed}</bdi></p>}
+    </div>
+  </details>;
+}
+
+function ReturnPolicy({ receipt, arabic }) {
+  const t = translate(arabic);
+  const policy = receiptPolicy(receipt);
+  return <div className="policy">
+    <h3><Undo2 size={16} aria-hidden="true" />{t('Returns & refunds', 'الإرجاع والاسترداد')}</h3>
+    {policy.text ? <>
+      {policy.returnEnd && <div className="return-line"><span>{t('Return for a refund', 'الإرجاع واسترداد المبلغ')}</span><Deadline date={policy.returnEnd} days={policy.returnDays} arabic={arabic} /></div>}
+      {policy.exchangeEnd && <div className="return-line"><span>{t('Exchange', 'الاستبدال')}</span><Deadline date={policy.exchangeEnd} days={policy.exchangeDays} arabic={arabic} /></div>}
+      <p className="policy-text" dir="auto">{policy.text}</p>
+    </> : <p className="tip">{t('Not stated on the receipt. You can add a return period with Edit below.', 'غير مذكورة في الفاتورة. يمكنك إضافة مدة الإرجاع من زر التعديل أدناه.')}</p>}
+  </div>;
+}
+
+export function ResultView({ body, arabic, priceView = 'unit' }) {
+  const t = translate(arabic);
+  const receipt = body.receipt ?? {};
   const entries = products([{ id: 'detail', analysis: body }]);
-  return <><section className="card"><h2>{body.receipt?.merchantName || t('Purchase details', 'بيانات الشراء')}</h2><dl className="facts"><dt>{t('Date', 'التاريخ')}</dt><dd>{body.receipt?.purchaseDate || '—'}</dd><dt>{t('Receipt no.', 'رقم الفاتورة')}</dt><dd>{body.receipt?.receiptNumber || '—'}</dd><dt>{t('Total', 'الإجمالي')}</dt><dd>{amount(body.receipt?.total, body.receipt?.currency)}</dd></dl></section>
-    {entries.map((entry) => <section className="card" key={entry.index}><div className="product-top"><span className="product-emoji" aria-hidden="true">▤</span><div className="product-title"><strong>{entry.item.description || t('Product', 'منتج')}</strong><small>{t('Quantity', 'الكمية')}: {entry.item.quantity ?? 1}</small></div><span className="product-price">{amount(entry.item.totalPrice, body.receipt?.currency)}</span></div><div className="time-grid"><WarrantyTimer entry={entry} arabic={arabic} /><div className="time-cell"><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div></div>{entry.item.warranty?.sourceText && <p className="tip">{entry.item.warranty.sourceText}</p>}{entry.item.localPolicy && <p className="tip">{t('Policy dates use the durations you entered. Confirm the store’s terms.', 'التواريخ محسوبة حسب المدد التي أدخلتها. تحقق من شروط المتجر.')}</p>}<div className="refund-line"><span>{t('Refund', 'الاسترداد')}</span><span className="refund-pill">{t('Subject to store approval', 'حسب موافقة المتجر')}</span></div></section>)}
-    {(body.review?.missingFields?.length > 0 || body.review?.uncertainties?.length > 0) && <section className="card"><h2>{t('Needs review', 'يحتاج مراجعة')}</h2>{body.review.missingFields?.length > 0 && <p className="tip">{t('Missing fields', 'حقول ناقصة')}: {body.review.missingFields.join(', ')}</p>}{body.review.uncertainties?.map((u, i) => <p className="tip" key={i}>{u.field}: {u.note}</p>)}</section>}
-    {body.requestId && <p className="tip request-id">{t('Request ID', 'رقم الطلب')}: <bdi>{body.requestId}</bdi></p>}</>;
+  const phone = receipt.customerServicePhone;
+  return <>
+    <section className="card receipt-summary"><h2><bdi>{receipt.merchantName || t('Purchase details', 'بيانات الشراء')}</bdi></h2>
+      <dl className="facts">
+        {receipt.branchName && <><dt>{t('Branch', 'الفرع')}</dt><dd><bdi>{receipt.branchName}</bdi></dd></>}
+        <dt>{t('Date', 'التاريخ')}</dt><dd>{formatDate(receipt.purchaseDate, arabic)}</dd>
+        {receipt.receiptNumber && <><dt>{t('Receipt no.', 'رقم الفاتورة')}</dt><dd><bdi>{receipt.receiptNumber}</bdi></dd></>}
+        <dt>{t('Total', 'الإجمالي')}</dt><dd><bdi>{formatMoney(receipt.total, receipt.currency, arabic)}</bdi></dd>
+        {phone && <><dt>{t('Customer service', 'خدمة العملاء')}</dt><dd><a className="phone-link" href={`tel:${phone.replace(/[\s-]/g, '')}`}><Phone size={15} aria-hidden="true" /><bdi dir="ltr">{phone}</bdi></a></dd></>}
+      </dl>
+      {receipt.warrantyNotes && <p className="policy-text" dir="auto">{receipt.warrantyNotes}</p>}
+      <ReturnPolicy receipt={receipt} arabic={arabic} />
+    </section>
+    <div className="section items-heading"><h2>{t('Items', 'المنتجات')}</h2>{entries.length > 1 && <span className="count-badge">{itemCountText(entries.length, arabic)}</span>}</div>
+    {entries.length > 1 && <p className="tip items-hint">{t('Tap an item for its warranty and details.', 'اضغط على المنتج لعرض ضمانه وتفاصيله.')}</p>}
+    {entries.map((entry) => <ItemDetails key={entry.index} entry={entry} currency={receipt.currency} arabic={arabic} priceView={priceView} open={entries.length === 1} />)}
+    {(body.review?.missingFields?.length > 0 || body.review?.uncertainties?.length > 0) && <section className="card review-card"><h2><ShieldQuestion size={19} aria-hidden="true" />{t('Needs review', 'يحتاج مراجعة')}</h2>{body.review.missingFields?.length > 0 && <p className="tip">{t('Please check', 'راجع')}: {body.review.missingFields.map((field) => fieldLabel(field, arabic)).join(arabic ? '، ' : ', ')}</p>}{body.review.uncertainties?.map((u, i) => <p className="tip" key={i}><strong>{fieldLabel(u.field, arabic)}</strong>: <span dir="auto">{u.note}</span></p>)}</section>}
+    {body.requestId && <details className="technical"><summary>{t('Analysis reference', 'مرجع التحليل')}</summary><p className="tip request-id"><bdi>{body.requestId}</bdi></p></details>}
+  </>;
 }
 
-export function ReceiptEditor({ body, arabic, busy, onSave, onCancel }) {
-  const t = translate(arabic);
-  const [index, setIndex] = useState(0);
-  const item = body?.items?.[index];
-  // A keyed form remounts when a different product is selected.
-  return <section className="card"><h2>{t('Edit purchase & policies', 'تعديل الشراء والمدد')}</h2>{body?.items?.length > 1 && <label className="field">{t('Product', 'المنتج')}<select value={index} onChange={(event) => setIndex(Number(event.target.value))}>{body.items.map((product, i) => <option key={i} value={i}>{product.description || `${i + 1}`}</option>)}</select></label>}<EditForm key={index} body={body} item={item} index={index} arabic={arabic} busy={busy} onSave={onSave} onCancel={onCancel} /></section>;
+function productDraft(item) {
+  return { description: itemName(item) || '', price: linePrice(item).total ?? '', warrantyAmount: item?.localPolicy?.warranty?.amount ?? '', warrantyUnit: item?.localPolicy?.warranty?.unit || 'months', returnAmount: item?.localPolicy?.returns?.amount ?? '', returnUnit: item?.localPolicy?.returns?.unit || 'days' };
 }
 
-function EditForm({ body, item, index, arabic, busy, onSave, onCancel }) {
+export function ReceiptEditor({ body, initialIndex = 0, arabic, busy, onSave, onCancel, onGuard }) {
   const t = translate(arabic);
-  const [draft, setDraft] = useState(() => ({ description: item?.description || '', merchant: body?.receipt?.merchantName || '', price: item?.totalPrice ?? '', date: body?.receipt?.purchaseDate || '', warrantyAmount: item?.localPolicy?.warranty?.amount ?? '', warrantyUnit: item?.localPolicy?.warranty?.unit || 'months', returnAmount: item?.localPolicy?.returns?.amount ?? '', returnUnit: item?.localPolicy?.returns?.unit || 'days' }));
-  const change = (key) => (event) => setDraft((value) => ({ ...value, [key]: event.target.value }));
-  const duration = (prefix, title) => <div className="duration-edit"><label className="field">{title}<input type="number" min="0" max="3650" step="1" placeholder={t('Unspecified', 'غير محدد')} value={draft[`${prefix}Amount`]} onChange={change(`${prefix}Amount`)} /></label><label className="field">{t('Unit', 'الوحدة')}<select value={draft[`${prefix}Unit`]} onChange={change(`${prefix}Unit`)}><option value="days">{t('Days', 'أيام')}</option><option value="weeks">{t('Weeks', 'أسابيع')}</option><option value="months">{t('Months', 'أشهر')}</option><option value="years">{t('Years', 'سنوات')}</option></select></label></div>;
-  return <form onSubmit={(event) => { event.preventDefault(); onSave(draft, index); }}><fieldset disabled={busy}>
-    <label className="field">{t('Product name', 'اسم المنتج')}<input value={draft.description} onChange={change('description')} required /></label><label className="field">{t('Store', 'المتجر')}<input value={draft.merchant} onChange={change('merchant')} /></label><div className="duration-edit"><label className="field">{t('Price', 'السعر')}<input type="number" min="0" step="0.01" value={draft.price} onChange={change('price')} /></label><label className="field">{t('Purchase date', 'تاريخ الشراء')}<input type="date" value={draft.date} onChange={change('date')} /></label></div>
-    {duration('warranty', t('Warranty duration', 'مدة الضمان'))}{duration('return', t('Return period', 'فترة الإرجاع'))}<p className="tip">{t('Leave durations blank to keep receipt-stated warranty dates. Enter 0 for no coverage. Dates start on the purchase date. Re-analyzing replaces manual edits.', 'اترك المدد فارغة للاحتفاظ بضمان الفاتورة، أو أدخل 0 لعدم وجود مدة. يبدأ الحساب من تاريخ الشراء. إعادة التحليل تستبدل التعديلات اليدوية.')}</p><div className="row"><button className="btn">{t('Save changes', 'حفظ التعديلات')}</button><button className="secondary" type="button" onClick={onCancel}>{t('Cancel', 'إلغاء')}</button></div>
-  </fieldset></form>;
+  const [index, setIndex] = useState(initialIndex);
+  const [shared, setShared] = useState(() => ({ merchant: body?.receipt?.merchantName || '', date: body?.receipt?.purchaseDate || '' }));
+  const [drafts, setDrafts] = useState(() => (body?.items?.length ? body.items : [null]).map(productDraft));
+  const baseline = useRef({ shared: JSON.stringify(shared), drafts: drafts.map((draft) => JSON.stringify(draft)) });
+  const form = useRef(null);
+  const sharedDirty = JSON.stringify(shared) !== baseline.current.shared;
+  const dirty = sharedDirty || drafts.some((draft, i) => JSON.stringify(draft) !== baseline.current.drafts[i]);
+  const save = useCallback(async () => {
+    if (!form.current.reportValidity()) return false;
+    const changes = drafts.flatMap((draft, i) => sharedDirty || JSON.stringify(draft) !== baseline.current.drafts[i] ? [{ values: { ...shared, ...draft }, index: i }] : []);
+    return changes.length ? onSave(changes) : true;
+  }, [drafts, shared, sharedDirty, onSave]);
+  useEffect(() => { onGuard({ dirty, save }); }, [dirty, save, onGuard]);
+  useEffect(() => () => onGuard({ dirty: false, save: async () => true }), [onGuard]);
+  const draft = drafts[index];
+  const change = (key) => (event) => { const value = event.target.value; setDrafts((current) => current.map((entry, i) => i === index ? { ...entry, [key]: value } : entry)); };
+  const duration = (prefix, title) => <div className="duration-edit"><label className="field">{title}<input name={`${prefix}-amount`} type="number" inputMode="numeric" min="0" max="3650" step="1" placeholder={t('Unspecified', 'غير محدد')} value={draft[`${prefix}Amount`]} onChange={change(`${prefix}Amount`)} /></label><label className="field">{t('Unit', 'الوحدة')}<select name={`${prefix}-unit`} value={draft[`${prefix}Unit`]} onChange={change(`${prefix}Unit`)}><option value="days">{t('Days', 'أيام')}</option><option value="weeks">{t('Weeks', 'أسابيع')}</option><option value="months">{t('Months', 'أشهر')}</option><option value="years">{t('Years', 'سنوات')}</option></select></label></div>;
+  return <section className="card editor-card"><h2>{t('Edit purchase & policies', 'تعديل الشراء والمدد')}</h2>
+    <form ref={form} onSubmit={(event) => { event.preventDefault(); save(); }}><fieldset disabled={busy}>
+      {drafts.length > 1 && <label className="field">{t('Product', 'المنتج')}<select value={index} onChange={(event) => setIndex(Number(event.target.value))}>{drafts.map((entry, i) => <option key={i} value={i}>{entry.description || formatNumber(i + 1, arabic)}</option>)}</select></label>}
+      <label className="field">{t('Product name', 'اسم المنتج')}<input name="product-name" value={draft.description} onChange={change('description')} required autoComplete="off" /></label>
+      <label className="field">{t('Store', 'المتجر')}<input name="store-name" value={shared.merchant} onChange={(event) => setShared((value) => ({ ...value, merchant: event.target.value }))} autoComplete="off" /></label>
+      <div className="duration-edit"><label className="field">{linePrice(body?.items?.[index]).quantity > 1 ? t('Item total', 'إجمالي المنتج') : t('Price', 'السعر')}<input name="price" type="number" inputMode="decimal" min="0" step="0.01" value={draft.price} onChange={change('price')} /></label><label className="field">{t('Purchase date', 'تاريخ الشراء')}<input name="purchase-date" type="date" value={shared.date} onChange={(event) => setShared((value) => ({ ...value, date: event.target.value }))} /></label></div>
+      {duration('warranty', t('Warranty duration', 'مدة الضمان'))}{duration('return', t('Return period', 'فترة الإرجاع'))}
+      <p className="tip">{t('Leave durations blank to keep receipt-stated dates. Enter 0 for no coverage. Durations start on the purchase date.', 'اترك المدد فارغة للاحتفاظ بتواريخ الفاتورة، أو أدخل ٠ لعدم وجود مدة. يبدأ الحساب من تاريخ الشراء.')}</p>
+      <div className="row"><button className="btn" disabled={!dirty}>{t('Save changes', 'حفظ التعديلات')}</button><button className="secondary" type="button" onClick={onCancel}>{t('Cancel', 'إلغاء')}</button></div>
+    </fieldset></form>
+  </section>;
 }
