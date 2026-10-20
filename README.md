@@ -4,7 +4,7 @@ An Android receipt wallet with private on-device storage and receipt analysis th
 
 - [`android-app/`](android-app/README.md): the working React/Capacitor app, using the `Frontend-UI` design with real saved receipts, camera/PDF import, analysis, policy editing, and Android app lock.
 - [`infrastructure/`](infrastructure/README.md): the analysis relay and private administration dashboard. Production API base: `https://dhamantaha.arc-homlab.com/v1`.
-- [`ضمنتها/`](ضمنتها/README.md): the original static frontend design and its Arabic/English, light/dark, and text-size variants.
+- [`ضمنتها/`](ضمنتها/index.html): the original static frontend design and its Arabic/English, light/dark, and text-size variants.
 
 `main` combines the infrastructure and frontend branches. Build and install from `android-app/`:
 
