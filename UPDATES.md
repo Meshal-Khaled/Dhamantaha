@@ -172,3 +172,10 @@ Tool: Claude Code — Developer: Meshal Khaled
 **Update:** Merged the infrastructure app and Frontend-UI branches into main in Desktop\Dhamantaha, then connected the frontend design to the existing Android wallet. The APK now has live Home counts and upcoming deadlines, searchable receipts, camera/photo/PDF import, receipt details and originals, confirmed deletion, and persistent Arabic/English, light/dark and normal/large text settings. Added offline purchase and per-product warranty/return duration editing with calendar-safe expiry calculations; original printed warranty dates stay fixed and calculated warranties follow an edited purchase date. Existing Android app lock, device-local storage and The Ring connection settings remain available. Built and installed through adb install -r. All 21 JavaScript tests and 11 isolated native storage/lock tests passed. Live phone checks passed navigation, existing receipt details, appearance persistence, native import, manual editing, persistence after reload, search, and deletion; the temporary test receipt was removed, both original saved receipts remain, and the configured client-key setting survived without exposing its value. Fixed Arabic bottom-navigation positioning during phone verification. Scheduled phone notifications remain unimplemented; upcoming deadlines appear on Home. An optional additional API authentication probe was blocked by automatic approval review because it would transmit the stored client key, and was omitted. The infrastructure checkout and deployed service were not modified.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 18:49 (Asia/Riyadh)
+
+**Update:** Included the latest Frontend-UI commit (8033e71), which removes the obsolete static-demo README. Updated the main README reference to open the original frontend index instead. No application code changed; the installed APK and completed phone tests remain current.
+
+Tool: Codex — Developer: Meshal Khaled
+
