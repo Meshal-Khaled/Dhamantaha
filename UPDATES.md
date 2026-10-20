@@ -179,3 +179,9 @@ Tool: Codex — Developer: Meshal Khaled
 
 Tool: Codex — Developer: Meshal Khaled
 
+
+## 2026-10-20 18:53 (Asia/Riyadh)
+
+**Update:** Added warranty progress lines to product cards and receipt details. The days remaining now sit beside the warranty label (الضمان), with a bar underneath that shrinks as the remaining days decrease relative to the period from purchase to expiry. Progress is clamped to 0–100%, expired warranties are empty, and missing dates do not invent a percentage. The bar follows Arabic/English direction and light/dark appearance and exposes its percentage to accessibility tools. All 22 JavaScript tests passed, including shrinking/expired/missing-date coverage. Built and installed the update over ADB; on-phone checks verified the inline label/count, bar placement, matching card/detail values, and no horizontal overflow.
+
+Tool: Codex — Developer: Meshal Khaled
