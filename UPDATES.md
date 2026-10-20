@@ -185,3 +185,9 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Added warranty progress lines to product cards and receipt details. The days remaining now sit beside the warranty label (الضمان), with a bar underneath that shrinks as the remaining days decrease relative to the period from purchase to expiry. Progress is clamped to 0–100%, expired warranties are empty, and missing dates do not invent a percentage. The bar follows Arabic/English direction and light/dark appearance and exposes its percentage to accessibility tools. All 22 JavaScript tests passed, including shrinking/expired/missing-date coverage. Built and installed the update over ADB; on-phone checks verified the inline label/count, bar placement, matching card/detail values, and no horizontal overflow.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-20 19:10 (Asia/Riyadh)
+
+**Update:** Replaced the default Capacitor Android launcher icon with the existing transparent Dhamantaha receipt/shield logo. Bundled the unchanged source symbol in android-app/resources/app-icon.png and generated standard, round, adaptive foreground, and monochrome resources for all five Android density buckets. Adaptive artwork has padding for launcher masks, with a white background and Android 13+ themed-icon support. Built and installed successfully through adb install -r and verified the logo in Android's app-info screen on the connected phone. No application logic or storage changed.
+
+Tool: Codex — Developer: Meshal Khaled
