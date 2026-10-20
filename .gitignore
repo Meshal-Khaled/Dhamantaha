@@ -1,0 +1,11 @@
+node_modules/
+
+# Real environment configuration and provider keys stay on The Ring only.
+.env
+.env.*
+!.env.example
+
+# Test receipts can contain personal data; keep them out of Git.
+test-receipts/
+
+*.log
