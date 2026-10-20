@@ -1,0 +1,3 @@
+# UPDATES.md only ever grows. When two branches both add entries, keep both instead of stopping with a
+# conflict. This applies to git merge, git pull and git rebase run on your own machine.
+UPDATES.md merge=union
