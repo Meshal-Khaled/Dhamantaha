@@ -1,0 +1,7 @@
+node_modules
+test
+test-receipts
+scripts
+.env
+.env.*
+*.log
