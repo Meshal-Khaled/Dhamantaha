@@ -58,3 +58,16 @@ test('a full disk preserves the successful response for a save retry', async () 
   });
   await assert.rejects(wallet.analyze('one', {}, async () => result), (error) => error.result === result && /could not be saved/.test(error.message));
 });
+
+test('whole-wallet metadata includes receipts beyond the first page without opening originals', async () => {
+  const rows = Array.from({ length: 121 }, (_, id) => ({ id: String(id), name: `receipt-${id}` }));
+  const offsets = [];
+  const wallet = createReceiptWallet({
+    list: async (offset, limit) => { offsets.push(offset); return rows.slice(offset, offset + limit); },
+    get: () => assert.fail('search must not read original bytes'),
+  });
+  const result = await wallet.listAll();
+  assert.equal(result.length, 121);
+  assert.equal(result.at(-1).name, 'receipt-120');
+  assert.deepEqual(offsets, [0, 50, 100]);
+});

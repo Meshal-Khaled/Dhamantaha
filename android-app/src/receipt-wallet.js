@@ -24,6 +24,17 @@ function asBase64(blob) {
 export function createReceiptWallet(driver) {
   return {
     list: (offset = 0) => driver.list(offset, PAGE_SIZE),
+    async listAll() {
+      // Only metadata/analysis is read. Originals remain private files and are not loaded for search.
+      const records = new Map();
+      let offset = 0;
+      while (true) {
+        const page = await driver.list(offset, PAGE_SIZE);
+        for (const record of page) records.set(record.id, record);
+        if (page.length < PAGE_SIZE) return [...records.values()];
+        offset += page.length;
+      }
+    },
     async save(file, name = file.name ?? 'Receipt') {
       const mime = receiptMime(file, name);
       if (!mime) throw new Error('Choose a receipt photo or PDF.');
@@ -66,6 +77,11 @@ const nativeDriver = {
   delete: (id) => plugin.delete({ id }),
   open: (id) => plugin.open({ id }),
 };
+
+async function contentHash(blob) {
+  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 let database;
 function browserDatabase() {
@@ -111,11 +127,22 @@ const browserDriver = {
   },
   async save(file, name, mime) {
     const now = Date.now();
-    const record = { id: crypto.randomUUID(), name, mime, size: file.size, createdAt: now, updatedAt: now, analysis: null };
-    await transaction('readwrite', (receipts, files) => { receipts.add(record); files.add(file, record.id); });
+    // Same rule as the Android store: identical bytes return the receipt already saved.
+    const sha256 = await contentHash(file);
+    const record = { id: crypto.randomUUID(), name, mime, size: file.size, createdAt: now, updatedAt: now, analysis: null, sha256 };
+    const saved = await transaction('readwrite', (receipts, files, done) => {
+      const all = receipts.getAll();
+      all.onsuccess = () => {
+        const existing = all.result.filter((row) => row.sha256 === sha256).sort((a, b) => a.createdAt - b.createdAt)[0];
+        if (existing) return done({ ...existing, duplicate: true });
+        receipts.add(record);
+        files.add(file, record.id);
+        done(record);
+      };
+    });
     // Browsers may decline persistence. Android uses SQLite instead of browser storage.
     navigator.storage?.persist?.().catch(() => {});
-    return record;
+    return saved;
   },
   async get(id) {
     const result = await transaction('readonly', (receipts, files, done) => {

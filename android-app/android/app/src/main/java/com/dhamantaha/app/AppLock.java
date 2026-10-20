@@ -89,6 +89,8 @@ final class AppLock {
         return keyguard != null && keyguard.isDeviceSecure();
     }
 
+    boolean isLocked() { return enabled && !unlocked; }
+
     JSObject status() {
         JSObject status = new JSObject();
         status.put("enabled", enabled);
@@ -165,6 +167,7 @@ final class AppLock {
         webView.setImportantForAccessibility(locked ? View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS : View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
         unlockButton.setEnabled(!authenticating);
         if (locked) overlay.bringToFront();
+        activity.refreshChrome();
     }
 
     void destroy() {

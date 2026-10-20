@@ -1,4 +1,5 @@
 // Talks to The Ring. Pure functions, no React, so they run under `node --test`.
+import { localizeError } from './format.js';
 
 export const DEFAULT_API_BASE = 'https://dhamantaha.arc-homlab.com/v1';
 const REQUEST_TIMEOUT_MS = 95_000; // Cloudflare cuts requests at 100 s.
@@ -104,7 +105,8 @@ export async function analyzeReceipt({ baseUrl, clientKey, file, filename }, opt
 }
 
 /** What to tell the user for an error, by code. Falls back to the server's own message. */
-export function describeError(error) {
+export function describeError(error, arabic = false) {
+  if (arabic) return localizeError(error, true);
   const wait = error.retryAfterSeconds ? ` Try again in ${error.retryAfterSeconds} s.` : '';
   switch (error.code) {
     case 'unauthorized_client':
