@@ -1,0 +1,228 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { after, describe, it } from 'node:test';
+import { fileURLToPath } from 'node:url';
+import { report, SyncConflict, syncDocs } from './docs-sync.mjs';
+
+// Every repository here is a throwaway under the system temp folder. Nothing touches a real remote,
+// and the machine's own git configuration is ignored so the results do not depend on it.
+const sandbox = mkdtempSync(join(tmpdir(), 'docs-sync-tests-'));
+writeFileSync(join(sandbox, 'gitconfig'), '[user]\n\tname = Test User\n\temail = test@example.com\n');
+process.env.GIT_CONFIG_GLOBAL = join(sandbox, 'gitconfig');
+process.env.GIT_CONFIG_NOSYSTEM = '1';
+after(() => rmSync(sandbox, { recursive: true, force: true }));
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+function sh(cwd, ...args) {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+  if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr || result.stdout}`);
+  return result.stdout;
+}
+const tryGit = (cwd, ...args) => spawnSync('git', args, { cwd, encoding: 'utf8' });
+
+const HEADER = '# Updates\n\n## Rules\n\n- Append only.\n';
+const entry = (time, text) => `\n## 2026-10-20 ${time} (Asia/Riyadh)\n\n**Update:** ${text}\n\nTool: Test — Developer: Someone\n`;
+const headings = (text) => [...text.matchAll(/^## 2026-10-20 (\d\d:\d\d)/gm)].map((match) => match[1]);
+
+let counter = 0;
+/** A bare origin with main, plus clones on their own branches, like Meshal's and the friend's folders. */
+function team({ log = HEADER + entry('10:00', 'first'), eol = '\n' } = {}) {
+  const dir = join(sandbox, `team-${(counter += 1)}`);
+  mkdirSync(dir);
+  const origin = join(dir, 'origin.git');
+  sh(dir, 'init', '--bare', '-b', 'main', origin);
+
+  const seed = join(dir, 'seed');
+  sh(dir, 'clone', '-q', origin, seed);
+  sh(seed, 'config', 'core.autocrlf', 'false');
+  writeFileSync(join(seed, 'UPDATES.md'), log.replace(/\n/g, eol));
+  writeFileSync(join(seed, 'Meshal-Plan.md'), ['Plan', 'line two', 'line three', ''].join(eol));
+  sh(seed, 'add', '.');
+  sh(seed, 'commit', '-q', '-m', 'docs');
+  sh(seed, 'push', '-q', 'origin', 'HEAD:main');
+
+  const clone = (name) => {
+    const path = join(dir, name);
+    sh(dir, 'clone', '-q', '-b', 'main', origin, path);
+    sh(path, 'switch', '-q', '-c', name);
+    return path;
+  };
+  const infra = clone('infra');
+  mkdirSync(join(infra, 'app'));
+  writeFileSync(join(infra, 'app', 'code.js'), 'export const x = 1;\n'); // code that must never reach main
+  sh(infra, 'add', '.');
+  sh(infra, 'commit', '-q', '-m', 'code');
+  const front = clone('front');
+
+  const onMain = (file) => sh(origin, 'show', `main:${file}`);
+  const append = (folder, file, text) => writeFileSync(join(folder, file), readFileSync(join(folder, file), 'utf8') + text);
+  return { dir, origin, seed, infra, front, onMain, append, mainSha: () => sh(origin, 'rev-parse', 'main').trim() };
+}
+
+describe('docs-sync', () => {
+  it('check shows what would change and changes nothing', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    const before = t.mainSha();
+    const result = syncDocs({ cwd: t.infra, mode: 'check' });
+
+    assert.deepEqual(result.forMain.map((file) => file.name), ['UPDATES.md']);
+    assert.equal(t.mainSha(), before);
+    assert.deepEqual(headings(readFileSync(join(t.infra, 'UPDATES.md'), 'utf8')), ['10:00', '11:00']);
+    const text = report(result, 'check');
+    assert.match(text, /UPDATES\.md\s+main would get: 1 new log entry/);
+    assert.match(text, /Nothing was changed/);
+  });
+
+  it('push publishes the entry to main as a docs-only commit and leaves the branch alone', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    const branchBefore = sh(t.infra, 'rev-parse', 'HEAD');
+    const result = syncDocs({ cwd: t.infra, mode: 'push' });
+
+    assert.ok(result.pushed);
+    assert.deepEqual(headings(t.onMain('UPDATES.md')), ['10:00', '11:00']);
+    assert.deepEqual(sh(t.origin, 'ls-tree', '-r', '--name-only', 'main').trim().split('\n').sort(), ['Meshal-Plan.md', 'UPDATES.md']);
+    assert.equal(sh(t.origin, 'log', '-1', '--format=%s', 'main').trim(), 'docs: sync UPDATES.md from infra');
+    assert.equal(sh(t.infra, 'rev-parse', 'HEAD'), branchBefore);
+    assert.equal(sh(t.infra, 'rev-parse', '--abbrev-ref', 'HEAD').trim(), 'infra');
+    assert.match(report(result, 'push'), /Pushed [0-9a-f]{7} to main\./);
+  });
+
+  it('keeps entries from two people on different branches, in the order they were published', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    syncDocs({ cwd: t.infra, mode: 'push' });
+    t.append(t.front, 'UPDATES.md', entry('11:30', 'from the friend'));
+    syncDocs({ cwd: t.front, mode: 'push' });
+
+    assert.deepEqual(headings(t.onMain('UPDATES.md')), ['10:00', '11:00', '11:30']);
+    // The friend's own copy now has the infra entry too; infra gets the friend's on its next pull.
+    assert.deepEqual(headings(readFileSync(join(t.front, 'UPDATES.md'), 'utf8')), ['10:00', '11:00', '11:30']);
+    syncDocs({ cwd: t.infra, mode: 'pull' });
+    assert.deepEqual(headings(readFileSync(join(t.infra, 'UPDATES.md'), 'utf8')), ['10:00', '11:00', '11:30']);
+  });
+
+  it('retries from the new version when someone else pushes to main first', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    let raced = false;
+    syncDocs({
+      cwd: t.infra,
+      mode: 'push',
+      beforePush: () => {
+        if (raced) return;
+        raced = true;
+        sh(t.seed, 'pull', '-q', 'origin', 'main');
+        t.append(t.seed, 'UPDATES.md', entry('10:30', 'pushed while we were publishing'));
+        sh(t.seed, 'commit', '-q', '-am', 'another entry');
+        sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+      },
+    });
+    assert.deepEqual(headings(t.onMain('UPDATES.md')), ['10:00', '10:30', '11:00']);
+  });
+
+  it('stops on a real conflict in a plan and pushes nothing', () => {
+    const t = team();
+    sh(t.seed, 'pull', '-q', 'origin', 'main');
+    writeFileSync(join(t.seed, 'Meshal-Plan.md'), 'Plan\nline two CHANGED ON MAIN\nline three\n');
+    sh(t.seed, 'commit', '-q', '-am', 'edit plan');
+    sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two CHANGED HERE\nline three\n');
+    const before = t.mainSha();
+
+    assert.throws(() => syncDocs({ cwd: t.infra, mode: 'push' }), (error) => error instanceof SyncConflict && error.file === 'Meshal-Plan.md');
+    assert.equal(t.mainSha(), before);
+  });
+
+  it('merges plan edits made in different places', () => {
+    const t = team();
+    sh(t.seed, 'pull', '-q', 'origin', 'main');
+    writeFileSync(join(t.seed, 'Meshal-Plan.md'), 'Plan EDITED ON MAIN\nline two\nline three\n');
+    sh(t.seed, 'commit', '-q', '-am', 'edit plan');
+    sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+    writeFileSync(join(t.infra, 'Meshal-Plan.md'), 'Plan\nline two\nline three EDITED HERE\n');
+    syncDocs({ cwd: t.infra, mode: 'push' });
+
+    assert.equal(t.onMain('Meshal-Plan.md'), 'Plan EDITED ON MAIN\nline two\nline three EDITED HERE\n');
+    assert.equal(readFileSync(join(t.infra, 'Meshal-Plan.md'), 'utf8'), 'Plan EDITED ON MAIN\nline two\nline three EDITED HERE\n');
+  });
+
+  it('pull brings main\'s docs into a folder that lacks them, and never loses local entries', () => {
+    const t = team();
+    sh(t.seed, 'pull', '-q', 'origin', 'main');
+    writeFileSync(join(t.seed, 'AGENTS.md'), '# Rules\n');
+    sh(t.seed, 'add', 'AGENTS.md');
+    sh(t.seed, 'commit', '-q', '-m', 'agents');
+    sh(t.seed, 'push', '-q', 'origin', 'HEAD:main');
+    t.append(t.front, 'UPDATES.md', entry('12:00', 'local, unpublished'));
+    const before = t.mainSha();
+
+    syncDocs({ cwd: t.front, mode: 'pull' });
+    assert.equal(readFileSync(join(t.front, 'AGENTS.md'), 'utf8'), '# Rules\n');
+    assert.deepEqual(headings(readFileSync(join(t.front, 'UPDATES.md'), 'utf8')), ['10:00', '12:00']);
+    assert.equal(t.mainSha(), before); // pull never publishes
+  });
+
+  it('keeps the CRLF line endings main already uses, so the commit adds only the new lines', () => {
+    const t = team({ eol: '\r\n' });
+    sh(t.infra, 'config', 'core.autocrlf', 'true'); // like Meshal's machine
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra')); // appended with plain LF
+    syncDocs({ cwd: t.infra, mode: 'push' });
+
+    const published = t.onMain('UPDATES.md');
+    assert.equal(published.replace(/\r\n/g, '').includes('\n'), false, 'no bare LF line endings on main');
+    assert.deepEqual(headings(published), ['10:00', '11:00']);
+    const [added, removed] = sh(t.origin, 'diff', '--numstat', 'main~1', 'main', '--', 'UPDATES.md').trim().split(/\s+/);
+    assert.equal(removed, '0');
+    assert.ok(Number(added) > 0);
+  });
+
+  it('reports in sync once everything is published', () => {
+    const t = team();
+    t.append(t.infra, 'UPDATES.md', entry('11:00', 'from infra'));
+    syncDocs({ cwd: t.infra, mode: 'push' });
+    const again = syncDocs({ cwd: t.infra, mode: 'push' });
+    assert.equal(again.forMain.length, 0);
+    assert.equal(again.pushed, null);
+    assert.match(report(again, 'push'), /Main already has everything/);
+    assert.match(report(syncDocs({ cwd: t.infra, mode: 'check' }), 'check'), /UPDATES\.md\s+in sync/);
+  });
+});
+
+describe('.gitattributes', () => {
+  /** Two branches each add a log entry; merge one into the other. */
+  function mergeTwoBranches({ withAttributes }) {
+    const dir = join(sandbox, `attributes-${withAttributes ? 'on' : 'off'}`);
+    mkdirSync(dir);
+    sh(dir, 'init', '-q', '-b', 'main');
+    writeFileSync(join(dir, 'UPDATES.md'), HEADER + entry('10:00', 'first'));
+    if (withAttributes) copyFileSync(join(repoRoot, '.gitattributes'), join(dir, '.gitattributes'));
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'start');
+    for (const [branch, time] of [['infra', '11:00'], ['front', '11:30']]) {
+      sh(dir, 'switch', '-q', '-c', branch, 'main');
+      writeFileSync(join(dir, 'UPDATES.md'), readFileSync(join(dir, 'UPDATES.md'), 'utf8') + entry(time, `from ${branch}`));
+      sh(dir, 'commit', '-q', '-am', branch);
+    }
+    sh(dir, 'switch', '-q', 'infra');
+    const merge = tryGit(dir, 'merge', '--no-edit', 'front');
+    return { merge, text: readFileSync(join(dir, 'UPDATES.md'), 'utf8') };
+  }
+
+  it('lets git merge keep both entries when two branches add one at the same time', () => {
+    const { merge, text } = mergeTwoBranches({ withAttributes: true });
+    assert.equal(merge.status, 0, merge.stdout + merge.stderr);
+    assert.deepEqual(headings(text), ['10:00', '11:00', '11:30']);
+    assert.doesNotMatch(text, /<<<<<<<|>>>>>>>/);
+  });
+
+  it('would conflict without it (control)', () => {
+    const { merge } = mergeTwoBranches({ withAttributes: false });
+    assert.notEqual(merge.status, 0);
+  });
+});

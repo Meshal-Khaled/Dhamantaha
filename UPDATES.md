@@ -130,3 +130,9 @@ Tool: Claude Code — Developer: Meshal Khaled
 **Update:** Moved the shared documents back to the repository root on the `infrastructure` branch, the same place they have on `main`: UPDATES.md, Mazen-Plan.md, Meshal-Plan.md and Resource.md. The `documents/` folder no longer exists on this branch. The log is now one file at the same path on every branch, so merging into `main` only adds the new entries instead of clashing with the root UPDATES.md. Compared with `main`, the only difference is the added log entries. Updated the plan link in `infrastructure/README.md`.
 
 Tool: Claude Code — Developer: Meshal Khaled
+
+## 2026-10-20 17:39 (Asia/Riyadh)
+
+**Update:** Set up one set of shared docs that every branch and every tool gets through `main`. Added `.gitattributes` (UPDATES.md uses `merge=union`, so when two branches add log entries at the same time git keeps both instead of stopping with a conflict), `scripts/docs-sync.mjs` (publishes the shared docs to `main` from any branch or folder without switching branches or touching other files, and brings `main`'s docs back: no flag only checks, `--pull` updates this folder, `--push` publishes), and `AGENTS.md` with a one-line `CLAUDE.md` that imports it (the logging rules for Codex, Claude Code and people: append only, real clock time, publish with the script). The script keeps each file's existing line endings, merges the plans normally and stops with the file name if two people changed the same lines. Tested only on throwaway repositories (11 tests, including a race with another push and the same merge with and without the `.gitattributes` rule); a check against the real repository found nothing wrong and nothing was changed. Nothing is pushed to `main` yet.
+
+Tool: Claude Code — Developer: Meshal Khaled
