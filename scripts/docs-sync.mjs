@@ -5,10 +5,14 @@
 //   node scripts/docs-sync.mjs --pull     bring main's docs into this folder
 //   node scripts/docs-sync.mjs --push     publish this folder's docs to main, and bring main's in
 //
+// The GitHub Action in .github/workflows/sync-docs.yml runs --push for you whenever a branch with changed
+// shared docs is pushed, so running it by hand is only needed to publish right away.
+//
 // It never switches branches and never touches your other files. Pushing adds one commit on top of main
 // that contains only the files listed in SHARED_FILES. UPDATES.md is an append-only log, so lines from both
 // sides are kept and two people adding entries at the same time never conflict. The other files are merged
-// normally; if two people changed the same lines, it stops and names the file to fix by hand.
+// normally; if two people changed the same lines, it stops and names the file to fix by hand. It also refuses
+// a log that changes or removes entries main already has, because the log is append-only.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -25,15 +29,31 @@ export const SHARED_FILES = [
   '.gitattributes',
   'scripts/docs-sync.mjs',
   'scripts/docs-sync.test.mjs',
+  '.github/workflows/sync-docs.yml',
 ];
+/** GitHub does not let a workflow change files under .github/, so inside the Action they are left out. */
+export const sharedFilesFor = (env = process.env) =>
+  env.GITHUB_ACTIONS === 'true' ? SHARED_FILES.filter((name) => !name.startsWith('.github/')) : SHARED_FILES;
 const LOG_FILES = new Set(['UPDATES.md']);
 const MAX_PUSH_ATTEMPTS = 3;
 
 export class SyncConflict extends Error {
-  constructor(file) {
-    super(`${file} was changed differently here and on main. Run "git pull origin main", fix ${file} by hand, then run this again.`);
+  constructor(file, message) {
+    super(message ?? `${file} was changed differently here and on main. Run "git pull origin main", fix ${file} by hand, then run this again.`);
     this.name = 'SyncConflict';
     this.file = file;
+  }
+}
+
+/** The log is append-only: a copy that edits or drops a line main already has is refused, not published. */
+export class LogRewritten extends SyncConflict {
+  constructor(file, line) {
+    super(
+      file,
+      `${file} is append-only, but this copy changes or removes a line that main has: "${line.trim().slice(0, 80)}". ` +
+        `Restore the earlier entries (for example "git checkout origin/main -- ${file}", then add your entry again) and run this again.`,
+    );
+    this.name = 'LogRewritten';
   }
 }
 
@@ -68,7 +88,7 @@ function showFile(cwd, ref, path) {
 }
 
 /** Three-way merge of one file on LF text. Returns the merged text; throws SyncConflict if it cannot. */
-function mergeFile(name, { base, mine, theirs }) {
+function mergeText(name, { base, mine, theirs }) {
   if (mine === null) return theirs; // not in this folder yet: take main's
   if (theirs === null) return mine; // new doc: publish it
   if (mine === theirs) return mine;
@@ -92,6 +112,21 @@ function mergeFile(name, { base, mine, theirs }) {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+/** Every non-blank line of `before` must still be in `after`, in the same order. */
+function assertOnlyGrows(name, before, after) {
+  const kept = (text) => text.split('\n').filter((line) => line.trim() !== '');
+  const wanted = kept(before);
+  let found = 0;
+  for (const line of kept(after)) if (found < wanted.length && line === wanted[found]) found += 1;
+  if (found < wanted.length) throw new LogRewritten(name, wanted[found]);
+}
+
+function mergeFile(name, parts) {
+  const merged = mergeText(name, parts);
+  if (LOG_FILES.has(name) && parts.theirs !== null && merged !== null) assertOnlyGrows(name, parts.theirs, merged);
+  return merged;
 }
 
 /** One commit on top of `parent` that changes only `changes`, built without touching any checkout. */
@@ -128,7 +163,7 @@ function writeLocal(root, changes) {
  * Compares this folder's shared docs with origin/main and, depending on `mode`, updates this folder
  * ('pull') or also publishes to main ('push'). `check` changes nothing. `beforePush` is a test hook.
  */
-export function syncDocs({ cwd = process.cwd(), mode = 'check', files = SHARED_FILES, beforePush } = {}) {
+export function syncDocs({ cwd = process.cwd(), mode = 'check', files = sharedFilesFor(), beforePush } = {}) {
   const root = git(cwd, ['rev-parse', '--show-toplevel']).stdout.trim();
   const branch = git(root, ['rev-parse', '--abbrev-ref', 'HEAD']).stdout.trim();
 
