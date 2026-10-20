@@ -11,13 +11,24 @@ export function Deadline({ date, days, arabic }) {
   return <strong title={date}>{days < 0 ? t(`Ended ${-days} days ago`, `انتهى منذ ${-days} يوم`) : days === 0 ? t('Last day', 'اليوم الأخير') : t(`${days} days left`, `${days} يوم متبقٍ`)}</strong>;
 }
 
+function WarrantyTimer({ entry, arabic }) {
+  const t = translate(arabic);
+  const status = entry.warrantyDays !== null && entry.warrantyDays < 0 ? 'ended' : entry.warrantyDays !== null && entry.warrantyDays <= 30 ? 'urgent' : '';
+  return <div className={`time-cell warranty-timer ${status}`}>
+    <div className="warranty-heading"><span>{t('Warranty', 'الضمان')}</span><Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></div>
+    <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${entry.warrantyProgress}%`}>
+      <span className="warranty-fill" style={{ width: `${entry.warrantyProgress ?? 0}%` }} />
+    </div>
+  </div>;
+}
+
 export function ProductCard({ entry, arabic, disabled, onOpen }) {
   const t = translate(arabic);
   return <button className="product-card" disabled={disabled} onClick={() => onOpen(entry.record.id)}>
     <div className="product-top"><span className="product-emoji" aria-hidden="true">{entry.record.mime === 'application/pdf' ? '▤' : '▧'}</span>
       <span className="product-title"><strong>{entry.item.description || entry.record.name}</strong><small>{entry.receipt.merchantName || t('Saved on this device', 'محفوظة على هذا الجهاز')} · {entry.receipt.purchaseDate || new Date(entry.record.createdAt).toLocaleDateString(arabic ? 'ar-SA-u-ca-gregory' : 'en-GB')}</small></span>
       <span className="product-price">{amount(entry.item.totalPrice, entry.receipt.currency)}</span></div>
-    <div className="time-grid"><div className={`time-cell ${entry.warrantyDays !== null && entry.warrantyDays < 0 ? 'ended' : entry.warrantyDays !== null && entry.warrantyDays <= 30 ? 'urgent' : ''}`}><span>{t('Warranty', 'الضمان')}</span><Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></div>
+    <div className="time-grid"><WarrantyTimer entry={entry} arabic={arabic} />
       <div className={`time-cell ${entry.returnDays !== null && entry.returnDays < 0 ? 'ended' : entry.returnDays !== null && entry.returnDays <= 30 ? 'urgent' : ''}`}><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div></div>
     <div className="refund-line"><span>{entry.record.analysis ? t('Saved receipt', 'فاتورة محفوظة') : t('Ready to analyze', 'جاهزة للتحليل')}</span><span className="refund-pill">{t('View details', 'عرض التفاصيل')} ›</span></div>
   </button>;
@@ -69,7 +80,7 @@ export function ResultView({ body, arabic }) {
   const t = translate(arabic);
   const entries = products([{ id: 'detail', analysis: body }]);
   return <><section className="card"><h2>{body.receipt?.merchantName || t('Purchase details', 'بيانات الشراء')}</h2><dl className="facts"><dt>{t('Date', 'التاريخ')}</dt><dd>{body.receipt?.purchaseDate || '—'}</dd><dt>{t('Receipt no.', 'رقم الفاتورة')}</dt><dd>{body.receipt?.receiptNumber || '—'}</dd><dt>{t('Total', 'الإجمالي')}</dt><dd>{amount(body.receipt?.total, body.receipt?.currency)}</dd></dl></section>
-    {entries.map((entry) => <section className="card" key={entry.index}><div className="product-top"><span className="product-emoji" aria-hidden="true">▤</span><div className="product-title"><strong>{entry.item.description || t('Product', 'منتج')}</strong><small>{t('Quantity', 'الكمية')}: {entry.item.quantity ?? 1}</small></div><span className="product-price">{amount(entry.item.totalPrice, body.receipt?.currency)}</span></div><div className="time-grid"><div className="time-cell"><span>{t('Warranty', 'الضمان')}</span><Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></div><div className="time-cell"><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div></div>{entry.item.warranty?.sourceText && <p className="tip">{entry.item.warranty.sourceText}</p>}{entry.item.localPolicy && <p className="tip">{t('Policy dates use the durations you entered. Confirm the store’s terms.', 'التواريخ محسوبة حسب المدد التي أدخلتها. تحقق من شروط المتجر.')}</p>}<div className="refund-line"><span>{t('Refund', 'الاسترداد')}</span><span className="refund-pill">{t('Subject to store approval', 'حسب موافقة المتجر')}</span></div></section>)}
+    {entries.map((entry) => <section className="card" key={entry.index}><div className="product-top"><span className="product-emoji" aria-hidden="true">▤</span><div className="product-title"><strong>{entry.item.description || t('Product', 'منتج')}</strong><small>{t('Quantity', 'الكمية')}: {entry.item.quantity ?? 1}</small></div><span className="product-price">{amount(entry.item.totalPrice, body.receipt?.currency)}</span></div><div className="time-grid"><WarrantyTimer entry={entry} arabic={arabic} /><div className="time-cell"><span>{t('Returns', 'الإرجاع')}</span><Deadline date={entry.returnEnd} days={entry.returnDays} arabic={arabic} /></div></div>{entry.item.warranty?.sourceText && <p className="tip">{entry.item.warranty.sourceText}</p>}{entry.item.localPolicy && <p className="tip">{t('Policy dates use the durations you entered. Confirm the store’s terms.', 'التواريخ محسوبة حسب المدد التي أدخلتها. تحقق من شروط المتجر.')}</p>}<div className="refund-line"><span>{t('Refund', 'الاسترداد')}</span><span className="refund-pill">{t('Subject to store approval', 'حسب موافقة المتجر')}</span></div></section>)}
     {(body.review?.missingFields?.length > 0 || body.review?.uncertainties?.length > 0) && <section className="card"><h2>{t('Needs review', 'يحتاج مراجعة')}</h2>{body.review.missingFields?.length > 0 && <p className="tip">{t('Missing fields', 'حقول ناقصة')}: {body.review.missingFields.join(', ')}</p>}{body.review.uncertainties?.map((u, i) => <p className="tip" key={i}>{u.field}: {u.note}</p>)}</section>}
     {body.requestId && <p className="tip request-id">{t('Request ID', 'رقم الطلب')}: <bdi>{body.requestId}</bdi></p>}</>;
 }

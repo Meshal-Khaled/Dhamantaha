@@ -79,3 +79,20 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .theme-dark .choice.chosen { background: var(--pale); color: var(--green); }
 @media (min-width: 600px) { body { padding: 0; } .app .phone { border-radius: 0; min-height: 100dvh; } }
 @media (max-width: 360px) { .main { padding-inline: 14px; } .title { font-size: 22px; } .hero { padding: 18px; } .hero img { width: 56px; height: 56px; } .product-price { font-size: 10px; } }
+
+.warranty-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 7px; min-height: 24px; color: var(--green); }
+.warranty-heading > span { color: #64887e; font-size: 10px; }
+.warranty-heading > strong { font-size: 11px; line-height: 1.7; }
+.warranty-track { height: 6px; margin-top: 7px; background: #d3e9e0; border-radius: 99px; overflow: hidden; }
+.warranty-fill { display: block; height: 100%; background: var(--green); border-radius: inherit; transition: width .35s ease; }
+.warranty-timer.urgent .warranty-heading { color: #a76a1c; }
+.warranty-timer.urgent .warranty-track { background: #efddba; }
+.warranty-timer.urgent .warranty-fill { background: #c98b2f; }
+.warranty-timer.ended .warranty-heading { color: var(--sub); }
+.warranty-timer.ended .warranty-track { background: var(--line); }
+.theme-dark .warranty-heading > span { color: var(--sub); }
+.theme-dark .warranty-track { background: #365f52; }
+.theme-dark .warranty-timer.urgent .warranty-heading { color: #ffd18e; }
+.theme-dark .warranty-timer.urgent .warranty-track { background: #725a35; }
+.font-large .main .warranty-heading > span, .font-large .main .warranty-heading > strong { font-size: 12px; }
+@media (prefers-reduced-motion: reduce) { .warranty-fill { transition: none; } }

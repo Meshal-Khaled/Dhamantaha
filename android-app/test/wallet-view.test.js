@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { endDate, products, walletSummary, editAnalysis } from '../src/wallet-view.js';
+import { endDate, products, walletSummary, editAnalysis, warrantyProgress } from '../src/wallet-view.js';
 
 test('policy dates clamp month ends and leap years, and reject invalid input', () => {
   assert.equal(endDate('2026-01-31', 1, 'months'), '2026-02-28');
@@ -59,4 +59,18 @@ test('editing a purchase date recalculates duration-based warranties but keeps p
   ] } };
   assert.equal(products([record])[0].warrantyEnd, '2027-10-20');
   assert.equal(products([record])[1].warrantyEnd, '2027-01-01');
+});
+
+test('warranty progress shrinks with remaining days and clamps at the start and expiry', () => {
+  const progress = (day) => warrantyProgress('2026-10-01', '2026-10-21', new Date(2026, 9, day));
+  assert.equal(progress(1), 100);
+  assert.equal(progress(11), 50);
+  assert.equal(progress(16), 25);
+  assert.equal(progress(21), 0);
+  assert.equal(progress(25), 0);
+  assert.equal(warrantyProgress('2026-10-01', '2026-10-21', new Date(2026, 8, 20)), 100);
+  assert.equal(warrantyProgress(null, '2026-10-21'), null);
+  assert.equal(warrantyProgress('2026-10-01', null), null);
+  assert.equal(warrantyProgress('2026-02-30', '2026-10-21'), null);
+  assert.equal(warrantyProgress('2026-10-21', '2026-10-21'), 0);
 });

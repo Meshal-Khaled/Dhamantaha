@@ -17,6 +17,14 @@ export function endDate(start, amount, unit) {
   return date.toISOString().slice(0, 10);
 }
 
+export function warrantyProgress(purchaseDate, expirationDate, today = new Date()) {
+  if (!endDate(purchaseDate, 1, 'days') || !endDate(expirationDate, 1, 'days')) return null;
+  const total = daysUntil(expirationDate, new Date(`${purchaseDate}T12:00:00`));
+  const remaining = daysUntil(expirationDate, today);
+  if (total <= 0) return 0;
+  return Math.round(Math.max(0, Math.min(1, remaining / total)) * 1000) / 10;
+}
+
 export function products(records, today = new Date()) {
   return records.flatMap((record) => {
     const body = record.analysis;
@@ -26,7 +34,7 @@ export function products(records, today = new Date()) {
       const warrantyEnd = policy?.warranty ? endDate(body?.receipt?.purchaseDate, policy.warranty.amount, policy.warranty.unit)
         : item.warranty?.expirationBasis === 'calculated' ? endDate(body?.receipt?.purchaseDate, item.warranty.durationValue, item.warranty.durationUnit) : item.warranty?.expirationDate;
       const returnEnd = policy?.returns ? endDate(body?.receipt?.purchaseDate, policy.returns.amount, policy.returns.unit) : null;
-      return { record, index, item, receipt: body?.receipt ?? {}, warrantyEnd, returnEnd, warrantyDays: daysUntil(warrantyEnd, today), returnDays: daysUntil(returnEnd, today) };
+      return { record, index, item, receipt: body?.receipt ?? {}, warrantyEnd, returnEnd, warrantyDays: daysUntil(warrantyEnd, today), warrantyProgress: warrantyProgress(body?.receipt?.purchaseDate, warrantyEnd, today), returnDays: daysUntil(returnEnd, today) };
     });
   });
 }
