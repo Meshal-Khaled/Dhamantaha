@@ -2,6 +2,7 @@
   "appId": "com.dhamantaha.app",
   "appName": "Dhamantaha",
   "webDir": "dist",
+  "loggingBehavior": "none",
   "android": {
     "allowMixedContent": false
   }

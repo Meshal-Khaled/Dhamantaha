@@ -11,7 +11,8 @@
     "sync": "vite build && cap sync android",
     "android:build": "node scripts/android.js build",
     "android:install": "node scripts/android.js install",
-    "android:logs": "node scripts/android.js logs"
+    "android:logs": "node scripts/android.js logs",
+    "android:test-storage": "node scripts/android.js storage-test"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

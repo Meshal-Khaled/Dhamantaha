@@ -41,3 +41,19 @@ input[type=text], input[type=password], input:not([type]) { display: block; widt
 footer { margin-top: 20px; }
 .debug pre { background: #101a19; color: #c9e6e1; padding: 10px; border-radius: 8px; font-size: .72rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 40vh; }
 .debug-meta { font-size: .75rem; color: var(--muted); margin: 6px 0; overflow-wrap: anywhere; }
+.wallet-nav { display: flex; gap: 6px; background: #e6eeec; padding: 4px; border-radius: 12px; margin-top: 16px; }
+.wallet-nav button { flex: 1; color: var(--teal-dark); background: transparent; }
+.wallet-nav button[aria-current=page] { background: #fff; font-weight: 600; box-shadow: 0 1px 4px #14201f14; }
+.saved-list { list-style: none; padding: 0; margin: 12px 0 0; }
+.saved-list li + li { border-top: 1px solid var(--line); }
+.receipt-row { display: flex; align-items: center; gap: 12px; width: 100%; background: none; text-align: left; padding: 14px 0; color: var(--ink); }
+.receipt-summary { display: grid; gap: 3px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.receipt-summary span { font-size: .8rem; color: var(--muted); }
+.file-badge { background: #dcf3ee; color: var(--teal-dark); font-size: .75rem; padding: 12px 8px; border-radius: 8px; min-width: 48px; text-align: center; }
+.empty { padding: 24px 0; color: var(--muted); }
+.saved-label { font-size: .8rem; color: var(--teal-dark); margin: 0 0 12px; }
+.analyze-button { width: 100%; margin: 12px 0; }
+.delete-link { display: block; color: var(--bad) !important; margin-top: 12px; }
+.delete-confirm { border-top: 1px solid var(--line); margin-top: 16px; font-size: .9rem; }
+.danger { background: var(--bad); color: #fff; flex: 1; }
+.storage-status { margin-top: 12px; }

@@ -2,6 +2,7 @@
 //   node scripts/android.js build     web build + cap sync + gradle assembleDebug
 //   node scripts/android.js install   build, then adb install -r and launch on the connected phone
 //   node scripts/android.js logs      adb logcat filtered to the app's console output
+//   node scripts/android.js storage-test   isolated native database tests (keeps installed app data)
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -50,10 +51,26 @@ function logs() {
   run(adb, ['logcat', '-v', 'time', 'Capacitor/Console:V', 'chromium:I', 'AndroidRuntime:E', '*:S']);
 }
 
-const actions = { build, install, logs };
+function testStorage() {
+  build();
+  const env = { ...process.env, JAVA_HOME: findJava(), ANDROID_HOME: sdk };
+  const gradlew = join(root, 'android', process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
+  run(gradlew, [':app:assembleDebugAndroidTest'], { env, cwd: join(root, 'android') });
+  run(adb, ['install', '-r', apk]);
+  run(adb, ['install', '-r', join(root, 'android', 'app', 'build', 'outputs', 'apk', 'androidTest', 'debug', 'app-debug-androidTest.apk')]);
+  // Run instrumentation directly: Gradle's connected test task can uninstall the target app afterward.
+  const result = spawnSync(adb, ['shell', 'am', 'instrument', '-w', '-e', 'class',
+    'com.dhamantaha.app.ReceiptStoreTest', `${APP_ID}.test/androidx.test.runner.AndroidJUnitRunner`], { encoding: 'utf8' });
+  process.stdout.write(result.stdout ?? '');
+  process.stderr.write(result.stderr ?? '');
+  if (result.status !== 0 || !/OK \(\d+ tests?\)/.test(result.stdout ?? '')) throw new Error('Native storage tests failed.');
+  run(adb, ['shell', 'am', 'start', '-n', `${APP_ID}/.MainActivity`]);
+}
+
+const actions = { build, install, logs, 'storage-test': testStorage };
 const action = actions[process.argv[2]];
 if (!action) {
-  console.error('Usage: node scripts/android.js <build|install|logs>');
+  console.error('Usage: node scripts/android.js <build|install|logs|storage-test>');
   process.exit(2);
 }
 try {
