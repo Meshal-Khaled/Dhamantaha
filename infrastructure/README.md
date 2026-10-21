@@ -1,10 +1,21 @@
 # Dhamantaha infrastructure
 
-The private control room is at `/` (API settings) and `/dashboard/monitoring`.
+The private control room is at `/` (API settings), `/dashboard/api-monitoring` (provider/API
+requests, budgets and debugging), and `/dashboard/users` (anonymous app activity).
+The old `/dashboard/monitoring` address redirects to API monitoring.
 Sign in using the existing Ring admin key. The app API base URL is
 `https://dhamantaha.arc-homlab.com/v1`; analysis is `POST /receipts/analyze` relative to it.
 Dashboard settings apply immediately and persist on The Ring. Operational monitoring is
 held in memory; no customer receipt data is saved.
+
+Users shows refetches (saved receipts reopened), visits (app sessions separated by at least
+30 minutes away), receipt analysis attempts and original-file opens/downloads, with totals
+and a per-install table. The app reports visits, reopens and original downloads through
+`POST /v1/usage`. Analysis requests carry the same random install ID in `X-Install-Id` and
+are counted by the server once per submitted receipt upload, including failures, excluding
+provider retries and warranty explanation calls. Requests without an install ID appear in
+the unassigned total. Existing counters migrate with zero visits/analyses until new activity;
+no historical activity is inferred. User counters persist in private `state/usage.json`.
 
 The API settings page on port 3100 has **Add provider** and **Custom providers** controls.
 Save up to 20 additional profiles, check a profile's saved key/model, and select **Use this

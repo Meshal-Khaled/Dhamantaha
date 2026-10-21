@@ -29,6 +29,8 @@ describe('private dashboard', () => {
       assert.ok(response.url.endsWith('/dashboard/api-settings'));
       assert.match(await response.text(), /API settings/);
       assert.equal((await fetch(`${baseUrl}/dashboard/monitoring`)).status, 200);
+      assert.equal((await fetch(`${baseUrl}/dashboard/monitoring`)).url, `${baseUrl}/dashboard/api-monitoring`);
+      assert.equal((await fetch(`${baseUrl}/dashboard/users`)).status, 200);
       const api = await (await fetch(`${baseUrl}/v1`)).json();
       assert.equal(api.endpoints.analyzeReceipt, '/v1/receipts/analyze');
       assert.equal((await fetch(`${baseUrl}/v1/health`)).status, 200);
@@ -39,6 +41,7 @@ describe('private dashboard', () => {
     await withServer({ env: { ADMIN_KEY: ADMIN, CLIENT_KEYS: `android:${ADMIN}` } }, async ({ baseUrl }) => {
       assert.equal((await admin(baseUrl, '/settings')).status, 401);
       assert.equal((await admin(baseUrl, '/monitoring')).status, 401);
+      assert.equal((await admin(baseUrl, '/users')).status, 401);
       const rejected = await fetch(`${baseUrl}/admin/api/settings`, { headers: { 'X-Client-Key': ADMIN } });
       assert.equal(rejected.status, 401);
       assert.equal((await admin(baseUrl, '/login', { method: 'POST', body: { key: 'wrong-key' } })).status, 401);
@@ -243,7 +246,7 @@ describe('provider settings runtime', () => {
     try {
       await withServer({ env }, async ({ baseUrl }) => {
         const cookie = await login(baseUrl);
-        const empty = (await (await admin(baseUrl, '/monitoring', { cookie })).json()).usage;
+        const empty = await (await admin(baseUrl, '/users', { cookie })).json();
         assert.deepEqual([empty.refetches, empty.downloads, empty.users], [0, 0, 0]);
         assert.equal((await report(baseUrl, { deviceId: 'a'.repeat(32), events: { receipt_refetch: 1 } })).status, 401);
         assert.equal((await report(baseUrl, { deviceId: 'a'.repeat(32), events: { receipt_refetch: 2, original_download: 1 } }, key)).status, 202);
@@ -257,13 +260,14 @@ describe('provider settings runtime', () => {
           assert.equal((await rejected.json()).error.code, 'invalid_usage_report');
         }
         assert.equal((await fetch(`${baseUrl}/v1/usage`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...key }, body: '{nope' })).status, 400);
-        const usage = (await (await admin(baseUrl, '/monitoring', { cookie })).json()).usage;
+        const usage = await (await admin(baseUrl, '/users', { cookie })).json();
         assert.deepEqual([usage.refetches, usage.downloads, usage.users, usage.activeLast24h], [3, 4, 2, 2]);
         const first = usage.recentUsers.find((user) => user.user === 'aaaaaaaa');
         assert.deepEqual([first.refetches, first.downloads], [3, 1]);
         assert.doesNotMatch(JSON.stringify(usage), /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
         // Usage reports are not analysis requests.
         assert.equal((await (await admin(baseUrl, '/monitoring', { cookie })).json()).totalRequests, 0);
+        assert.equal((await (await admin(baseUrl, '/monitoring', { cookie })).json()).usage, undefined);
       });
       // Closing the server does not flush; the counters were written by the debounce or on stop.
       const { createUsage } = await import('../src/admin/usage.js');

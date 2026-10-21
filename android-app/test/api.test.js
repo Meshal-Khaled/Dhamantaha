@@ -33,6 +33,15 @@ test('analyzeReceipt omits the key header when none is set', async () => {
   assert.deepEqual(headers, {});
 });
 
+test('receipt analysis carries the same anonymous install ID used by usage reports', async () => {
+  const values = new Map();
+  const storage = { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  let seen;
+  const fetchImpl = async (_url, init) => { seen = init.headers; return new Response('{"receipt":{},"items":[]}', { status: 200 }); };
+  await analyzeReceipt({ ...settings, file: new File(['a'], 'a.pdf') }, { storage, fetchImpl });
+  assert.equal(seen['X-Install-Id'], values.get('dhamantaha.device.v1'));
+});
+
 test('server errors become ApiError with code, request id and retry-after', async () => {
   const body = { error: { code: 'rate_limited', message: 'Slow down.', requestId: 'r9' } };
   await assert.rejects(

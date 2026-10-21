@@ -1,14 +1,13 @@
 import { Router, json } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { USAGE_EVENTS } from '../admin/usage.js';
+import { APP_USAGE_EVENTS, DEVICE_ID } from '../admin/usage.js';
 import { AppError } from '../errors.js';
 import { clientKeyCheck } from './protection.js';
 
-const DEVICE_ID = /^[A-Za-z0-9-]{16,64}$/;
 const MAX_PER_REPORT = 100;
 const invalid = () => new AppError(400, 'invalid_usage_report', 'Send {"deviceId": "...", "events": {"receipt_refetch": 1}}.');
 
-/** POST /v1/usage: the app reports how often a saved receipt was reopened or its original downloaded. */
+/** POST /v1/usage: app visits, saved receipt reopens and original downloads. */
 export function usageRouter({ config, usage }) {
   const router = Router();
   router.post(
@@ -22,7 +21,7 @@ export function usageRouter({ config, usage }) {
       if (typeof deviceId !== 'string' || !DEVICE_ID.test(deviceId) || !events || typeof events !== 'object' || Array.isArray(events)) throw invalid();
       const counts = {};
       for (const [name, value] of Object.entries(events)) {
-        if (!USAGE_EVENTS.includes(name) || !Number.isSafeInteger(value) || value < 1 || value > MAX_PER_REPORT) throw invalid();
+        if (!APP_USAGE_EVENTS.includes(name) || !Number.isSafeInteger(value) || value < 1 || value > MAX_PER_REPORT) throw invalid();
         counts[name] = value;
       }
       if (!Object.keys(counts).length) throw invalid();

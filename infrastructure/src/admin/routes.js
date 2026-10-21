@@ -55,7 +55,8 @@ export function adminRouter({ config, runtime, monitoring, usage, budget, debug 
   router.delete('/settings/key', async (req, res) => res.json(await runtime.useRingKey()));
   router.post('/settings/check', rateLimit({ windowMs: 60_000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false,
     handler: (req, res, next) => next(new AppError(429, 'admin_rate_limited', 'Wait a minute before checking the provider again.')) }), async (req, res) => res.json(await runtime.check(req.body?.providerId)));
-  router.get('/monitoring', (req, res) => res.json({ ...monitoring.snapshot(), usage: usage.snapshot(), provider: runtime.summary(), budget: budget.usage(),
+  router.get('/users', (req, res) => res.json(usage.snapshot()));
+  router.get('/monitoring', (req, res) => res.json({ ...monitoring.snapshot(), provider: runtime.summary(), budget: budget.usage(),
     limits: { maxConcurrentAnalyses: config.limits.maxConcurrentAnalyses, maxImageBytes: config.limits.maxImageBytes,
       maxPdfBytes: config.limits.maxPdfBytes, maxPdfPages: config.limits.maxPdfPages } }));
   router.get('/debug', (req, res) => res.json({ ...debug.summary(), captures: debug.list() }));

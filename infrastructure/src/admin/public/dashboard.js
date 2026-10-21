@@ -1,8 +1,10 @@
 const $ = (id) => document.getElementById(id);
-const isMonitoring = location.pathname.endsWith('/monitoring');
-const destinations = ['/dashboard/api-settings', '/dashboard/monitoring'];
+const isMonitoring = location.pathname.endsWith('/api-monitoring') || location.pathname.endsWith('/monitoring');
+const isUsers = location.pathname.endsWith('/users');
+const pagePath = isUsers ? '/dashboard/users' : isMonitoring ? '/dashboard/api-monitoring' : '/dashboard/api-settings';
+const destinations = ['/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users', '/dashboard/monitoring'];
 const destination = destinations.includes(new URLSearchParams(location.search).get('next'))
-  ? new URLSearchParams(location.search).get('next') : '/dashboard/api-settings';
+  ? new URLSearchParams(location.search).get('next') : pagePath;
 let monitoringTimer;
 let toastTimer;
 const baseUrl = `${location.origin}/v1`;
@@ -33,7 +35,7 @@ async function api(path, { body, method = 'GET' } = {}) {
   const data = await response.json();
   if (!response.ok) {
     if (response.status === 401 && path !== '/login') {
-      location.replace(`/dashboard/login?next=${encodeURIComponent(isMonitoring ? '/dashboard/monitoring' : '/dashboard/api-settings')}`);
+      location.replace(`/dashboard/login?next=${encodeURIComponent(pagePath)}`);
     }
     throw new Error(data.error?.message || 'The request could not be completed.');
   }
@@ -207,22 +209,6 @@ function renderMonitoring(data) {
   $('instance-uptime').textContent = uptime(data.uptimeSeconds);
   $('instance-active').textContent = `${data.activeRequests} / ${data.limits.maxConcurrentAnalyses}`;
   $('instance-memory').textContent = `${Math.round(data.memoryRssBytes / 1024 / 1024)} MB`;
-  const usage = data.usage;
-  $('usage-refetches').textContent = number(usage.refetches);
-  $('usage-downloads').textContent = number(usage.downloads);
-  $('usage-users').textContent = number(usage.users);
-  $('usage-active').textContent = `${number(usage.activeLast24h)} active in the last 24 hours`;
-  $('usage-average').textContent = usage.users ? (usage.refetches / usage.users).toFixed(1) : '—';
-  $('usage-average').nextElementSibling.textContent = usage.users ? `Reopens per user · ${(usage.downloads / usage.users).toFixed(1)} downloads` : 'Average reopens · downloads';
-  $('usage-empty').hidden = usage.recentUsers.length > 0;
-  $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
-    const row = document.createElement('tr');
-    const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    [user.user, number(user.refetches), number(user.downloads), when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
-      const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
-    });
-    return row;
-  }));
   const chart = $('activity-chart');
   chart.replaceChildren();
   const max = Math.max(1, ...data.timeline.map((b) => b.requests));
@@ -415,28 +401,59 @@ async function refreshMonitoring(knownDebug) {
 }
 $('refresh-monitoring').addEventListener('click', () => refreshMonitoring());
 
+function renderUsers(usage) {
+  for (const field of ['refetches', 'visits', 'analyses', 'downloads', 'users']) $('usage-' + field).textContent = number(usage[field]);
+  $('usage-active').textContent = `${number(usage.activeLast24h)} installs active in the last 24 hours`;
+  $('users-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Every 15s`;
+  $('usage-empty').hidden = usage.recentUsers.length > 0;
+  $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
+    const row = document.createElement('tr');
+    const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    [user.user, number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
+      const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+    });
+    return row;
+  }));
+  $('usage-unattributed').hidden = !usage.unattributedAnalyses;
+  $('usage-unattributed').textContent = `${number(usage.unattributedAnalyses)} analysis requests came from clients without an install ID. They are included in the total, with no per-user attribution.`;
+  $('users-persistence').textContent = usage.persistent ? 'User counters are saved on The Ring and survive service restarts.' : 'User counters are in memory only because persistent storage is not configured.';
+}
+async function refreshUsers() {
+  $('refresh-users').disabled = true;
+  try { renderUsers(await api('/users')); }
+  catch (err) { toast(err.message); $('users-last-updated').textContent = 'Refresh failed · try again'; }
+  finally { $('refresh-users').disabled = false; }
+}
+$('refresh-users').addEventListener('click', refreshUsers);
+
 async function start() {
   try {
     const session = await api('/session');
     $('loading').hidden = true;
     if (!session.authenticated) {
       $('login-view').hidden = false;
-      if (!location.pathname.endsWith('/login')) history.replaceState(null, '', `/dashboard/login?next=${encodeURIComponent(isMonitoring ? '/dashboard/monitoring' : '/dashboard/api-settings')}`);
+      if (!location.pathname.endsWith('/login')) history.replaceState(null, '', `/dashboard/login?next=${encodeURIComponent(pagePath)}`);
       if (!session.available) { $('login-error').textContent = 'Dashboard access is not configured on this server.'; $('login-form').querySelector('button').disabled = true; }
       return;
     }
     if (location.pathname.endsWith('/login')) { location.replace(destination); return; }
     $('dashboard').hidden = false;
-    $('settings-view').hidden = isMonitoring;
+    $('settings-view').hidden = isMonitoring || isUsers;
     $('monitoring-view').hidden = !isMonitoring;
-    $('settings-nav').classList.toggle('active', !isMonitoring);
+    $('users-view').hidden = !isUsers;
+    $('settings-nav').classList.toggle('active', !isMonitoring && !isUsers);
     $('monitoring-nav').classList.toggle('active', isMonitoring);
-    $(isMonitoring ? 'monitoring-nav' : 'settings-nav').setAttribute('aria-current', 'page');
-    $('breadcrumb').textContent = isMonitoring ? 'Monitoring' : 'API settings';
-    document.title = `Dhamantaha · ${isMonitoring ? 'Monitoring' : 'API settings'}`;
+    $('users-nav').classList.toggle('active', isUsers);
+    $(isUsers ? 'users-nav' : isMonitoring ? 'monitoring-nav' : 'settings-nav').setAttribute('aria-current', 'page');
+    const pageTitle = isUsers ? 'Users' : isMonitoring ? 'API monitoring' : 'API settings';
+    $('breadcrumb').textContent = pageTitle;
+    document.title = `Dhamantaha · ${pageTitle}`;
     if (isMonitoring) {
       await refreshMonitoring();
       monitoringTimer = setInterval(() => { if (!document.hidden) refreshMonitoring(); }, 15_000);
+    } else if (isUsers) {
+      await refreshUsers();
+      monitoringTimer = setInterval(() => { if (!document.hidden) refreshUsers(); }, 15_000);
     } else renderSettings(await api('/settings'));
   } catch (err) {
     $('loading').hidden = true;

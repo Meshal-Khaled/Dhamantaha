@@ -41,7 +41,8 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   app.get(['/', '/dashboard'], (req, res) => res.redirect('/dashboard/api-settings'));
   const dashboard = fileURLToPath(new URL('./admin/public/', import.meta.url));
   app.use('/dashboard/assets', express.static(dashboard, { index: false, cacheControl: false }));
-  app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/monitoring'], (req, res) => res.sendFile('index.html', { root: dashboard }));
+  app.get('/dashboard/monitoring', (req, res) => res.redirect('/dashboard/api-monitoring'));
+  app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users'], (req, res) => res.sendFile('index.html', { root: dashboard }));
   app.use('/admin/api', adminRouter({ config, runtime, monitoring, usage, budget: dailyBudget, debug }));
   app.get('/v1', (req, res) => res.json({ service: 'Dhamantaha receipt API', version: 'v1',
     endpoints: { health: '/v1/health', analyzeReceipt: '/v1/receipts/analyze', explainWarranty: '/v1/warranty/explain', reportUsage: '/v1/usage' }, dashboard: '/dashboard/api-settings' }));
@@ -61,7 +62,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   });
 
   app.use('/v1', usageRouter({ config, usage }));
-  app.use('/v1', receiptsRouter({ config, provider: budgetedProvider, budget: dailyBudget, logger }));
+  app.use('/v1', receiptsRouter({ config, provider: budgetedProvider, budget: dailyBudget, logger, usage }));
 
   if (config.enableApiDocs) {
     const openApi = buildOpenApi(config);

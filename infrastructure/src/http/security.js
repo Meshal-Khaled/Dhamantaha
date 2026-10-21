@@ -21,7 +21,7 @@ export function corsPolicy(allowedOrigins) {
   return cors({
     origin: (origin, callback) => callback(null, Boolean(origin) && allowedOrigins.includes(origin)),
     methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'X-Client-Key'],
+    allowedHeaders: ['Content-Type', 'X-Client-Key', 'X-Install-Id'],
     exposedHeaders: ['X-Request-Id', 'Retry-After', 'RateLimit', 'RateLimit-Policy'],
     maxAge: 600,
   });

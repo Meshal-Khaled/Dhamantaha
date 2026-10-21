@@ -8,7 +8,7 @@ import WalletLayout from './WalletLayout.jsx';
 import { loadSettings, saveSettings } from './settings.js';
 import { receiptWallet } from './receipt-wallet.js';
 import { useNativeChrome } from './useNativeChrome.js';
-import { flushUsage, reportUsage } from './usage.js';
+import { flushUsage, reportUsage, trackVisits } from './usage.js';
 
 const native = Capacitor.isNativePlatform();
 const cleanGuard = () => ({ dirty: false, save: async () => true });
@@ -43,6 +43,9 @@ export default function App() {
   const pickedRef = useRef(picked);
   pickedRef.current = picked;
   const fileInput = useRef(null);
+  const usageSettings = useRef(settings);
+  useEffect(() => { usageSettings.current = settings; }, [settings]);
+  useEffect(() => trackVisits(() => { reportUsage('app_visit', usageSettings.current); }), []);
 
   useEffect(() => {
     const refresh = () => setClock((value) => value + 1);
