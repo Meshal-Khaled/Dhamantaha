@@ -2,3 +2,5 @@ User-agent: *
 Allow: /
 Disallow: /receipts
 Disallow: /settings
+Disallow: /teams
+Disallow: /qr

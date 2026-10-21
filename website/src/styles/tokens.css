@@ -1,5 +1,5 @@
 /* Design tokens: every color, size and shadow the site uses. The dark theme only overrides these. */
-:root {
+:root, [data-theme='light'] {
   color-scheme: light;
   --font: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
 

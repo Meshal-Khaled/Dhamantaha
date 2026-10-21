@@ -145,13 +145,13 @@ export function fakeProvider(handler = () => sampleProviderResponse()) {
 }
 
 /** Starts the app on an ephemeral port. `logLines` collects parsed log entries. */
-export async function startServer({ env = {}, provider = fakeProvider(), logLines, budget } = {}) {
+export async function startServer({ env = {}, provider = fakeProvider(), logLines, budget, usage } = {}) {
   const config = loadConfig({ GEMINI_TIMEOUT_MS: '5000', RATE_LIMIT_PER_MINUTE: '1000', ...env });
   const logger = createLogger({
     level: 'info',
     destination: { write: (line) => logLines?.push(JSON.parse(line)) },
   });
-  const app = createApp({ config, provider, logger, budget });
+  const app = createApp({ config, provider, logger, budget, usage });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });

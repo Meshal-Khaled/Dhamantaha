@@ -21,7 +21,7 @@ import { withBudget } from './providers/index.js';
  * Builds the infrastructure app. `provider` is Gemini, the mock, a test fake,
  * or null when analysis is not configured.
  */
-export function createApp({ config, provider, logger = createLogger({ level: config.logLevel }), budget, runtime: suppliedRuntime, usage: suppliedUsage, debug = createDebugCapture({ enabled: config.admin.debugCapture }) }) {
+export function createApp({ config, provider, logger = createLogger({ level: config.logLevel }), budget, runtime: suppliedRuntime, usage: suppliedUsage, requestMiddleware, debug = createDebugCapture({ enabled: config.admin.debugCapture }) }) {
   const dailyBudget = budget ?? createDailyBudget(config.limits.dailyProviderCallLimit);
   const runtime = suppliedRuntime ?? createRuntime(config, { provider });
   const monitoring = createMonitoring();
@@ -33,6 +33,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   app.set('trust proxy', config.trustProxy);
 
   app.use(requestContext(logger, monitoring.record));
+  if (requestMiddleware) app.use(requestMiddleware);
   app.use(securityHeaders());
   app.use(corsPolicy(config.corsOrigins));
   app.use(monitoring.begin);
@@ -42,7 +43,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   const dashboard = fileURLToPath(new URL('./admin/public/', import.meta.url));
   app.use('/dashboard/assets', express.static(dashboard, { index: false, cacheControl: false }));
   app.get('/dashboard/monitoring', (req, res) => res.redirect('/dashboard/api-monitoring'));
-  app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users'], (req, res) => res.sendFile('index.html', { root: dashboard }));
+  app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users', '/dashboard/logs'], (req, res) => res.sendFile('index.html', { root: dashboard }));
   app.use('/admin/api', adminRouter({ config, runtime, monitoring, usage, budget: dailyBudget, debug }));
   app.get('/v1', (req, res) => res.json({ service: 'Dhamantaha receipt API', version: 'v1',
     endpoints: { health: '/v1/health', analyzeReceipt: '/v1/receipts/analyze', explainWarranty: '/v1/warranty/explain', reportUsage: '/v1/usage' }, dashboard: '/dashboard/api-settings' }));

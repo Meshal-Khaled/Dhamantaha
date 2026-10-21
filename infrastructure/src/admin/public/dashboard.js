@@ -1,8 +1,9 @@
 const $ = (id) => document.getElementById(id);
 const isMonitoring = location.pathname.endsWith('/api-monitoring') || location.pathname.endsWith('/monitoring');
 const isUsers = location.pathname.endsWith('/users');
-const pagePath = isUsers ? '/dashboard/users' : isMonitoring ? '/dashboard/api-monitoring' : '/dashboard/api-settings';
-const destinations = ['/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users', '/dashboard/monitoring'];
+const isLogs = location.pathname.endsWith('/logs');
+const pagePath = isLogs ? '/dashboard/logs' : isUsers ? '/dashboard/users' : isMonitoring ? '/dashboard/api-monitoring' : '/dashboard/api-settings';
+const destinations = ['/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users', '/dashboard/monitoring', '/dashboard/logs'];
 const destination = destinations.includes(new URLSearchParams(location.search).get('next'))
   ? new URLSearchParams(location.search).get('next') : pagePath;
 let monitoringTimer;
@@ -409,7 +410,7 @@ function renderUsers(usage) {
   $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
     const row = document.createElement('tr');
     const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    [user.user, number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
+    [user.name || user.user, user.team || '—', number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), user.containers?.length ? user.containers.join(' → ') : 'Not recorded', when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
       const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
     });
     return row;
@@ -438,17 +439,22 @@ async function start() {
     }
     if (location.pathname.endsWith('/login')) { location.replace(destination); return; }
     $('dashboard').hidden = false;
-    $('settings-view').hidden = isMonitoring || isUsers;
+    $('settings-view').hidden = isMonitoring || isUsers || isLogs;
     $('monitoring-view').hidden = !isMonitoring;
     $('users-view').hidden = !isUsers;
-    $('settings-nav').classList.toggle('active', !isMonitoring && !isUsers);
+    $('logs-view').hidden = !isLogs;
+    $('settings-nav').classList.toggle('active', !isMonitoring && !isUsers && !isLogs);
     $('monitoring-nav').classList.toggle('active', isMonitoring);
     $('users-nav').classList.toggle('active', isUsers);
-    $(isUsers ? 'users-nav' : isMonitoring ? 'monitoring-nav' : 'settings-nav').setAttribute('aria-current', 'page');
-    const pageTitle = isUsers ? 'Users' : isMonitoring ? 'API monitoring' : 'API settings';
+    $('logs-nav').classList.toggle('active', isLogs);
+    $(isLogs ? 'logs-nav' : isUsers ? 'users-nav' : isMonitoring ? 'monitoring-nav' : 'settings-nav').setAttribute('aria-current', 'page');
+    const pageTitle = isLogs ? 'Containers & logs' : isUsers ? 'Users' : isMonitoring ? 'API monitoring' : 'API settings';
     $('breadcrumb').textContent = pageTitle;
     document.title = `Dhamantaha · ${pageTitle}`;
-    if (isMonitoring) {
+    if (isLogs) {
+      await refreshContainers();
+      monitoringTimer = setInterval(() => { if (!document.hidden) refreshContainers(); }, 3000);
+    } else if (isMonitoring) {
       await refreshMonitoring();
       monitoringTimer = setInterval(() => { if (!document.hidden) refreshMonitoring(); }, 15_000);
     } else if (isUsers) {
@@ -463,3 +469,31 @@ async function start() {
 }
 window.addEventListener('pagehide', () => clearInterval(monitoringTimer));
 start();
+async function refreshContainers() {
+  $('refresh-containers').disabled = true;
+  try {
+    const data = await api('/containers');
+    $('containers-status').textContent = !data.available ? 'Collector unavailable' : data.stale ? 'Stale snapshot' : `${data.containers.filter(c => c.status === 'running').length} QR containers running`;
+    $('containers-status').classList.toggle('warning', !data.available || data.stale);
+    $('containers-updated').textContent = data.collectedAt ? `Collected ${new Date(data.collectedAt).toLocaleString()} · Every 3s` : data.message;
+    $('qr-request-body').replaceChildren(...(data.requests ?? []).slice().reverse().map(request => {
+      const row = document.createElement('tr');
+      const outcome = request.state === 'waiting' ? 'Retry requested' : request.state;
+      [request.name || request.user, request.team || '—', request.container, outcome, request.winningKey || request.keys.join(', ') || '—', request.durationMs === undefined ? '…' : `${(request.durationMs / 1000).toFixed(1)}s`, new Date(request.startedAt).toLocaleTimeString()].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); });
+      return row;
+    }));
+    $('container-cards').replaceChildren(...data.containers.map(c => {
+      const card = document.createElement('article'); card.className = 'card container-card';
+      const title = document.createElement('h2'); title.textContent = c.name; card.append(title);
+      const state = document.createElement('span'); state.className = 'badge'; state.textContent = `${c.status} · ${c.health}`; card.append(state);
+      const facts = document.createElement('dl'); facts.className = 'debug-facts';
+      const values = [['Image', c.image], ['Started', c.startedAt ? new Date(c.startedAt).toLocaleString() : '—'], ['Restarts', c.restarts], ['Memory cap', c.memoryLimitBytes ? `${Math.round(c.memoryLimitBytes / 1024 / 1024)} MiB` : 'Host managed'], ['Gemini keys', c.keyAssignments.length ? c.keyAssignments.join(' · ') : 'No Gemini credential detected'], ...(c.model ? [['Model', c.model]] : []), ...(c.routing ? [['Routing', c.routing]] : [])];
+      values.forEach(([label,value]) => {const dt=document.createElement('dt');dt.textContent=label;const dd=document.createElement('dd');dd.textContent=value;facts.append(dt,dd);});
+      card.append(facts); return card;
+    }));
+    const logs = data.containers.flatMap(c => c.logs.map(log => `${c.name}  ${JSON.stringify(log)}`));
+    $('container-events').textContent = logs.length ? logs.join('\n') : 'No supported backend events in the latest log window.';
+  } catch (err) { $('containers-status').textContent = 'Refresh failed'; $('containers-status').classList.add('warning'); toast(err.message); }
+  finally { $('refresh-containers').disabled = false; }
+}
+$('refresh-containers').addEventListener('click', refreshContainers);

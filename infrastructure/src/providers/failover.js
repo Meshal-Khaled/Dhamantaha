@@ -23,7 +23,7 @@ const MAX_PARALLEL = 3;
  * one request) and `trace` (an array that receives one entry per attempt).
  */
 export function createFailoverProvider(
-  { keys, models, timeoutMs, totalTimeoutMs, hedgeAfterMs = 0, onAttempt, beforeRetry },
+  { keys, models, timeoutMs, totalTimeoutMs, hedgeAfterMs = 0, onAttempt, beforeRetry, isKeyAvailable = () => true, onKeysUnavailable },
   { createAttempt = createGeminiProvider } = {},
 ) {
   let nextKey = 0;
@@ -65,7 +65,7 @@ export function createFailoverProvider(
 
         /** Starts the next chain entry. Returns false when the chain has nothing left to try. */
         const launch = () => {
-          while (next < plan.length && skippedSlots.has(plan[next].slot)) next += 1;
+          while (next < plan.length && (skippedSlots.has(plan[next].slot) || !isKeyAvailable(plan[next].slot))) next += 1;
           if (next >= plan.length) return false;
           const remaining = deadlineAt - Date.now();
           if (launched > 0 && remaining < MIN_ATTEMPT_MS) return false;
@@ -111,14 +111,14 @@ export function createFailoverProvider(
                 if (!(error instanceof AppError) || !RETRYABLE.test(error.category)) return settle(reject, error);
                 lastError = error;
                 if (NEXT_KEY.has(error.category)) skippedSlots.add(slot);
-                if (!launch() && running === 0) settle(reject, lastError);
+                if (!launch() && running === 0) settle(reject, onKeysUnavailable?.() ?? lastError);
               },
             );
           scheduleHedge();
           return true;
         };
 
-        launch();
+        if (!launch()) settle(reject, onKeysUnavailable?.() ?? new AppError(503, 'server_busy', 'The analysis service is waiting for capacity.', { retryAfterSeconds: 60 }));
       });
     },
   };

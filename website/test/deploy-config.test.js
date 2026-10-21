@@ -9,7 +9,9 @@ const read = (...parts) => readFileSync(join(site, ...parts), 'utf8');
 test('the web server forwards only /v1 to the API, never the admin dashboard or docs', () => {
   const config = read('nginx', 'default.conf');
   const proxied = [...config.matchAll(/location\s+([^{]+)\{([^}]*)\}/g)].filter(([, , body]) => /proxy_pass/.test(body)).map(([, path]) => path.trim());
-  assert.deepEqual(proxied, ['/v1/']);
+  assert.deepEqual(proxied, ['= /v1/qr/usage', '= /v1/qr/receipts/analyze', '/v1/']);
+  assert.match(config, /location \/v1\/qr\/ \{ return 404; \}/);
+  assert.match(config, /set \$qr_backend http:\/\/qr:3100;/);
   assert.match(config, /set \$ring http:\/\/infrastructure:3100;/);
 });
 

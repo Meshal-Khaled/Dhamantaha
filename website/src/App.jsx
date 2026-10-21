@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef } from 'react';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { EventFooter, EventHeader } from './components/EventFrame.jsx';
 import Footer from './components/Footer.jsx';
 import Header from './components/Header.jsx';
 import Home from './pages/Home.jsx';
@@ -16,11 +17,17 @@ const HowItWorks = lazy(() => import('./pages/HowItWorks.jsx'));
 const Privacy = lazy(() => import('./pages/Privacy.jsx'));
 const Help = lazy(() => import('./pages/Help.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
+const Teams = lazy(() => import('./pages/Teams.jsx'));
+const QrPage = lazy(() => import('./pages/QrPage.jsx'));
+
+// The pages made for the presentation have their own slim frame and are not linked from the site.
+const EVENT_PAGES = ['/teams', '/qr'];
 
 function Shell() {
   const { t } = useSettings();
   const { pathname } = useLocation();
   const main = useRef(null);
+  const slim = EVENT_PAGES.includes(pathname.replace(/\/+$/, ''));
   const firstRender = useRef(true);
 
   // A new page starts at the top, and keyboard focus moves into it so screen readers announce the change.
@@ -45,8 +52,8 @@ function Shell() {
 
   return <>
     <a className="skip-link" href="#main" onClick={skip}>{t('nav.skip')}</a>
-    <Header />
-    <main id="main" ref={main} tabIndex={-1} className="site-main">
+    {slim ? <EventHeader /> : <Header />}
+    <main id="main" ref={main} tabIndex={-1} className={`site-main${slim ? ' event-main' : ''}`}>
       <ErrorBoundary key={pathname}>
         <Suspense fallback={<p className="page-loading" role="status">{t('common.loading')}</p>}>
           <Routes>
@@ -58,12 +65,14 @@ function Shell() {
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/teams" element={<Teams />} />
+            <Route path="/qr" element={<QrPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
     </main>
-    <Footer />
+    {slim ? <EventFooter /> : <Footer />}
   </>;
 }
 

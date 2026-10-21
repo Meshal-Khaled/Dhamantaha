@@ -33,6 +33,21 @@ function chain(behave, options = {}) {
 }
 
 describe('Gemini failover', () => {
+  it('skips keys in a shared cooldown across requests and returns a bounded wait if all are paused', async () => {
+    const paused = new Set();
+    const waiting = new AppError(503, 'server_busy', 'Waiting', { retryAfterSeconds: 60 });
+    const { provider, calls } = chain(key => {
+      if (key === 'k1') throw new AppError(503, 'analysis_quota_exceeded', 'Quota', { category: 'provider_quota' });
+      return { key };
+    }, { isKeyAvailable: slot => !paused.has(slot), onAttempt: entry => { if (entry.category === 'provider_quota') paused.add(Number(entry.key.slice(4)) - 1); }, onKeysUnavailable: () => paused.size === 3 ? waiting : undefined });
+    assert.deepEqual(await provider.analyze({}), { key: 'k2' });
+    assert.deepEqual(await provider.analyze({}), { key: 'k2' });
+    assert.deepEqual(await provider.analyze({}), { key: 'k3' });
+    assert.deepEqual(await provider.analyze({}), { key: 'k2' });
+    assert.equal(calls.filter(call => call.startsWith('k1/')).length, 1);
+    paused.add(1); paused.add(2);
+    await assert.rejects(provider.analyze({}), { code: 'server_busy', retryAfterSeconds: 60 });
+  });
   it('balances 30 simultaneous requests over three keys with stable trace slots', async () => {
     const { provider, calls } = chain((key) => ({ key }));
     const traces = Array.from({ length: 30 }, () => []);

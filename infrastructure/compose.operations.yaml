@@ -1,0 +1,6 @@
+services:
+  infrastructure:
+    environment:
+      CONTAINER_SNAPSHOT_FILE: /app/operations/containers.json
+    volumes:
+      - ../operations:/app/operations:ro

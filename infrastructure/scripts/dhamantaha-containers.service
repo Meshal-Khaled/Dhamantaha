@@ -1,0 +1,10 @@
+[Unit]
+Description=Dhamantaha read-only container snapshot
+After=docker.service
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/usr/bin/python3 /home/ubuntu/dhamantaha/infrastructure/scripts/container-snapshot.py /home/ubuntu/dhamantaha/operations/containers.json
+TimeoutStartSec=20
+NoNewPrivileges=true
