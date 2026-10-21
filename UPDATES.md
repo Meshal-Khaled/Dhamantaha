@@ -247,3 +247,9 @@ Tool: Claude Code — Developer: Meshal Khaled
 
 Tool: Claude Code — Developer: Meshal Khaled
 
+
+## 2026-10-21 17:10 (Asia/Riyadh)
+
+**Update:** Added and deployed provider management to the Dhamantaha control panel on port 3100 at https://dhamantaha.arc-homlab.com/dashboard/api-settings. Add provider offers Gemini, OpenAI, Anthropic, OpenRouter, Groq, DeepSeek, Mistral, and xAI using the upstream API URLs already used by The Ring; Custom providers accepts a public HTTPS Chat Completions endpoint. Up to 20 additional profiles can be saved, edited, checked, activated, and removed; saving is separate from activation, blank keys preserve saved keys, and credentials never appear in admin responses. Receipt and warranty analysis support the selected provider and retain existing validation, deadlines, limits, and budgets. Custom destinations pin public DNS addresses and reject private/metadata IPs and redirects. File support is shown per provider; custom profiles accept photos and extracted PDF text. Gemini remains active with its existing Ring key and failover chain, and deployment left provider.json byte-for-byte unchanged. All 146 backend tests pass locally; the complete suite also passed in the release image. Browser preview verified built-in URLs, profile creation, activation, custom URL entry, and reload persistence. Live authenticated settings and Gemini key/model checks pass; both services are healthy. Backup: backups/pre-provider-panel-20261021-140536; rollback image: dhamantaha-infrastructure:pre-provider-panel-20261021-140536. An initial change to The Ring's separate admin page was fully reverted, restoring its original source, image, and branch. Additional providers were tested with mocked upstream responses, without adding test profiles or switching providers in production.
+
+Tool: Codex — Developer: Meshal Khaled

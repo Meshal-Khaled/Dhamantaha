@@ -45,7 +45,7 @@ export function receiptsRouter({ config, provider, budget, logger }) {
 
       try {
         const result = await analyzeReceipt(buffer, {
-          provider: withRequestDeadline(capture ? recordingProvider(provider, capture.calls, { model: config.gemini.model }) : provider),
+          provider: withRequestDeadline(capture ? recordingProvider(provider, capture.calls, { model: config.providerModel ?? config.gemini.model }) : provider),
           limits: config.limits,
           today: todayIn(config.walletTimeZone),
           signal: controller.signal,

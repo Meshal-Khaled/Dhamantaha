@@ -6,6 +6,16 @@ const destination = destinations.includes(new URLSearchParams(location.search).g
 let monitoringTimer;
 let toastTimer;
 const baseUrl = `${location.origin}/v1`;
+let providerSettings;
+const selectedProvider = () => providerSettings?.providers.find((p) => p.id === $('saved-provider').value);
+function options(select, rows, value) {
+  select.replaceChildren(...rows.map(([id, label]) => new Option(label, id, false, id === value)));
+}
+function inputSupport(preset) {
+  return preset.pdf ? 'Photos and PDFs; the selected model must support these inputs.'
+    : preset.images ? 'Photos and PDFs with readable text. Scanned PDFs need a provider with PDF input.'
+      : 'PDFs with readable text only. This provider does not accept photos or scanned PDFs.';
+}
 
 function toast(message) {
   $('toast').textContent = message;
@@ -30,21 +40,82 @@ async function api(path, { body, method = 'GET' } = {}) {
   return data;
 }
 
-function renderSettings(data) {
-  $('model').value = data.model || '';
+function renderSettings(data, editing = data.activeProvider) {
+  providerSettings = data;
+  const selected = data.providers.find((p) => p.id === editing) ?? data.providers[0];
+  const preset = data.catalog.find((p) => p.type === selected.type);
+  options($('saved-provider'), data.providers.map((p) => [p.id, `${p.label}${p.id === data.activeProvider ? ' · Active' : ''}`]), selected.id);
+  options($('new-provider-type'), data.catalog.map((p) => [p.type, p.label]), $('new-provider-type').value || 'openrouter');
+  $('model').value = selected.model || '';
   $('provider-key').value = '';
-  $('key-status').textContent = data.keyConfigured ? 'Key configured' : 'No key configured';
+  $('provider-base-url').value = selected.baseUrl;
+  $('provider-base-url').readOnly = selected.type !== 'custom';
+  $('provider-input-note').textContent = inputSupport(preset);
+  $('key-status').textContent = selected.keyConfigured ? 'Key configured' : 'No key configured';
+  $('provider-title').textContent = selected.label;
+  $('route-provider').textContent = data.label;
+  $('active-provider-note').textContent = `Current analysis provider: ${data.label}. Saving another provider does not switch active requests.`;
+  $('activate-provider').hidden = selected.id === data.activeProvider;
+  $('activate-provider').disabled = !data.canSave;
+  $('remove-provider').hidden = selected.id === 'gemini' || selected.id === data.activeProvider;
   $('provider-badge').textContent = data.provider === 'mock' ? 'Development mock' : data.configured ? 'Provider configured' : 'Setup needed';
   $('provider-badge').classList.toggle('warning', !data.configured || data.provider === 'mock');
-  $('key-source-note').textContent = data.keySource === 'dashboard'
+  $('key-source-note').textContent = selected.keySource === 'dashboard'
     ? 'This service uses a key saved from this dashboard. It stays on The Ring and is never returned to the browser.'
-    : data.keySource === 'ring' ? 'Using the existing Gemini key on The Ring. Add a key above to override it for Dhamantaha only.'
-      : 'Add your Gemini API key. It will be stored privately on The Ring.';
-  $('use-ring-key').hidden = data.keySource !== 'dashboard';
+    : selected.keySource === 'ring' ? 'Using the existing Gemini key on The Ring. Add a key above to override it for Dhamantaha only.'
+      : 'Add your provider API key. It will be stored privately on The Ring.';
+  $('use-ring-key').hidden = selected.id !== 'gemini' || selected.keySource !== 'dashboard';
   $('save-provider').disabled = !data.canSave;
   $('api-base').textContent = baseUrl;
   if (!data.canSave) feedback('Settings storage is not configured on this server.', false);
 }
+
+$('saved-provider').addEventListener('change', () => { renderSettings(providerSettings, $('saved-provider').value); feedback('', true); });
+function prepareNewProvider() {
+  const preset = providerSettings.catalog.find((p) => p.type === $('new-provider-type').value);
+  $('new-provider-url').value = preset.baseUrl;
+  $('new-provider-url').readOnly = preset.type !== 'custom';
+  $('new-provider-label').value = preset.type === 'custom' ? '' : preset.label;
+  $('new-provider-help').textContent = inputSupport(preset);
+}
+function openAddProvider(custom) {
+  if (!providerSettings) return;
+  $('add-provider-form').hidden = false;
+  $('new-provider-type').value = custom ? 'custom' : 'openrouter';
+  $('new-provider-feedback').textContent = '';
+  prepareNewProvider();
+  $('new-provider-label').focus();
+}
+$('add-provider').addEventListener('click', () => openAddProvider(false));
+$('custom-provider').addEventListener('click', () => openAddProvider(true));
+$('new-provider-type').addEventListener('change', prepareNewProvider);
+$('cancel-add-provider').addEventListener('click', () => { $('add-provider-form').reset(); $('add-provider-form').hidden = true; });
+$('add-provider-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  $('create-provider').disabled = true;
+  try {
+    const data = await api('/providers', { method: 'POST', body: { type: $('new-provider-type').value,
+      label: $('new-provider-label').value, baseUrl: $('new-provider-url').value,
+      model: $('new-provider-model').value, apiKey: $('new-provider-key').value } });
+    renderSettings(data, data.providers.at(-1).id);
+    $('add-provider-form').reset();
+    $('add-provider-form').hidden = true;
+    feedback('Provider saved. Check its key and model, then choose Use this provider when ready.', true);
+  } catch (err) { $('new-provider-feedback').textContent = err.message; }
+  finally { $('create-provider').disabled = false; }
+});
+$('activate-provider').addEventListener('click', async () => {
+  $('activate-provider').disabled = true;
+  try { renderSettings(await api(`/providers/${encodeURIComponent(selectedProvider().id)}/activate`, { method: 'POST' })); feedback('Active provider updated. New analysis requests use it immediately.', true); }
+  catch (err) { feedback(err.message, false); }
+  finally { $('activate-provider').disabled = false; }
+});
+$('remove-provider').addEventListener('click', async () => {
+  const selected = selectedProvider();
+  if (!confirm(`Remove ${selected.label} and its saved key?`)) return;
+  try { renderSettings(await api(`/providers/${encodeURIComponent(selected.id)}`, { method: 'DELETE' })); feedback('Provider removed.', true); }
+  catch (err) { feedback(err.message, false); }
+});
 
 function feedback(message, ok) {
   $('provider-feedback').textContent = message;
@@ -71,9 +142,10 @@ $('provider-form').addEventListener('submit', async (event) => {
   $('save-provider').disabled = true;
   feedback('', true);
   try {
-    const data = await api('/settings', { method: 'PUT', body: { model: $('model').value, apiKey: $('provider-key').value } });
-    renderSettings(data);
-    feedback('Settings saved. New analysis requests will use this configuration.', true);
+    const providerId = selectedProvider().id;
+    const data = await api('/settings', { method: 'PUT', body: { providerId, model: $('model').value, apiKey: $('provider-key').value, baseUrl: $('provider-base-url').value } });
+    renderSettings(data, providerId);
+    feedback(providerId === data.activeProvider ? 'Settings saved. New analysis requests use this configuration.' : 'Provider settings saved. Choose Use this provider to activate it.', true);
     toast('API settings saved');
   } catch (err) { feedback(err.message, false); }
   finally { $('save-provider').disabled = false; }
@@ -81,8 +153,8 @@ $('provider-form').addEventListener('submit', async (event) => {
 
 $('check-provider').addEventListener('click', async () => {
   $('check-provider').disabled = true;
-  feedback('Checking the saved key and model with Google…', true);
-  try { feedback((await api('/settings/check', { method: 'POST' })).message, true); }
+  feedback('Checking the saved key and model with the provider…', true);
+  try { feedback((await api('/settings/check', { method: 'POST', body: { providerId: selectedProvider().id } })).message, true); }
   catch (err) { feedback(err.message, false); }
   finally { $('check-provider').disabled = false; }
 });
@@ -125,7 +197,7 @@ function renderMonitoring(data) {
   $('monitor-status').textContent = data.provider.configured ? 'Relay running · provider configured' : 'Relay running · provider setup needed';
   $('monitor-status').classList.toggle('warning', !data.provider.configured);
   $('last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Every 15s`;
-  $('instance-provider').textContent = data.provider.provider === 'mock' ? 'Mock (development)' : 'Google Gemini';
+  $('instance-provider').textContent = data.provider.provider === 'mock' ? 'Mock (development)' : data.provider.label;
   $('instance-model').textContent = data.provider.model || 'Not set';
   const fallbackModels = data.provider.fallbackModels ?? [];
   const spareKeys = Math.max(0, (data.provider.keyCount ?? 1) - 1);
@@ -244,6 +316,7 @@ function payloadView(capture) {
   }
   capture.modelCalls.forEach((call, index) => {
     const label = capture.modelCalls.length > 1 ? ` (call ${index + 1})` : '';
+    const providerLabel = call.provider || 'provider';
     const sent = [facts([['Model', call.model], ['Input', call.sent.kind.replaceAll('_', ' ')], ['Took', call.durationMs === undefined ? null : duration(call.durationMs)]])];
     if (call.sent.preview) {
       const image = el('img', 'debug-preview');
@@ -253,19 +326,19 @@ function payloadView(capture) {
     } else if (call.sent.text !== undefined) {
       sent.push(el('p', 'muted', `Text extracted from the PDF (${number(call.sent.characters)} characters${call.sent.truncated ? ', shortened here' : ''}):`), el('pre', 'debug-pre', call.sent.text));
     } else sent.push(el('p', 'muted', 'The whole PDF was sent as a document; no preview is kept.'));
-    body.append(block(`3 · Sent to Gemini${label}`, ...sent));
+    body.append(block(`3 · Sent to ${providerLabel}${label}`, ...sent));
     if (call.attempts?.length) {
       body.append(block(`Attempts${label}`, facts(call.attempts.map((attempt) => [
         `${attempt.attempt}. ${attempt.key} · ${attempt.model}`,
         `${attempt.ok ? 'answered' : `failed (${(attempt.category ?? 'error').replaceAll('_', ' ')})`} · ${duration(attempt.durationMs)}`,
       ]))));
     }
-    if (call.error) { body.append(block(`4 · Gemini's answer${label}`, el('p', 'debug-error', `${call.error.code}: ${call.error.message}`))); return; }
+    if (call.error) { body.append(block(`4 · ${providerLabel}'s answer${label}`, el('p', 'debug-error', `${call.error.code}: ${call.error.message}`))); return; }
     const reading = call.rawOutput?.receipt ?? {};
     const why = el('div', 'debug-why');
     why.append(el('strong', '', `Seller chosen: ${reading.merchantName ?? 'none'}`),
       el('p', '', reading.merchantEvidence ? `Evidence: ${reading.merchantEvidence}` : 'The model gave no explanation for this choice.'));
-    body.append(block(`4 · Gemini's answer${label}`, why, json(call.rawOutput ?? null)));
+    body.append(block(`4 · ${providerLabel}'s answer${label}`, why, json(call.rawOutput ?? null)));
   });
   body.append(response
     ? block('5 · Sent back to the app', el('p', 'debug-status', `HTTP ${response.status}`), json(response.body))

@@ -6,6 +6,21 @@ Sign in using the existing Ring admin key. The app API base URL is
 Dashboard settings apply immediately and persist on The Ring. Operational monitoring is
 held in memory; no customer receipt data is saved.
 
+The API settings page on port 3100 has **Add provider** and **Custom providers** controls.
+Save up to 20 additional profiles, check a profile's saved key/model, and select **Use this
+provider** to route new analysis requests through it. The existing Gemini profile and its
+Ring-managed key and fallback chain remain available. Blank key fields preserve saved keys.
+Additional keys stay in the private `state/provider.json`; summaries never return them.
+
+Built-in profiles reuse The Ring's API roots for Gemini, OpenAI, Anthropic, OpenRouter,
+Groq, DeepSeek, Mistral and xAI. Custom profiles use a public HTTPS endpoint that supports
+Chat Completions and `/models`. Custom requests pin a checked public DNS address and reject
+redirects. Gemini, Anthropic, OpenAI and OpenRouter profiles support PDF input; other profiles
+use extracted PDF text, and photo input where supported. The chosen model must also support
+the input. Custom profiles support photos and extracted PDF text, not scanned PDFs. Receipt
+and warranty output always passes the same validation. Additional profiles make one call;
+automatic model/key failover remains specific to the original Gemini profile.
+
 The foundation behind Dhamantaha (ضمنتها). It takes a photo or PDF of a bill, has Gemini read it, and returns wallet-ready receipt and warranty data for the Android app to save on the phone. It runs on The Ring and stores no customer data.
 
 ```
