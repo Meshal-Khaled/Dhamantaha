@@ -2,6 +2,7 @@ import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createRuntime } from './admin/runtime.js';
+import { createUsage } from './admin/usage.js';
 import { createDailyBudget } from './http/protection.js';
 
 const config = loadConfig();
@@ -22,7 +23,8 @@ if (config.host !== '127.0.0.1' && config.clientKeys.length === 0) {
   logger.warn({ event: 'exposed_without_client_keys', host: config.host });
 }
 
-const app = createApp({ config, runtime, logger, budget });
+const usage = createUsage({ directory: config.admin.stateDirectory });
+const app = createApp({ config, runtime, logger, budget, usage });
 const server = app.listen(config.port, config.host, () => {
   logger.info({ event: 'server_started', host: config.host, port: config.port, provider: runtime.provider.name });
 });
@@ -35,7 +37,7 @@ server.requestTimeout = config.gemini.totalTimeoutMs + 60_000;
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     logger.info({ event: 'server_stopping', signal });
-    server.close(() => process.exit(0));
+    usage.flush().catch(() => {}).then(() => server.close(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10_000).unref();
   });
 }

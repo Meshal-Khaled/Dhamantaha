@@ -135,6 +135,22 @@ function renderMonitoring(data) {
   $('instance-uptime').textContent = uptime(data.uptimeSeconds);
   $('instance-active').textContent = `${data.activeRequests} / ${data.limits.maxConcurrentAnalyses}`;
   $('instance-memory').textContent = `${Math.round(data.memoryRssBytes / 1024 / 1024)} MB`;
+  const usage = data.usage;
+  $('usage-refetches').textContent = number(usage.refetches);
+  $('usage-downloads').textContent = number(usage.downloads);
+  $('usage-users').textContent = number(usage.users);
+  $('usage-active').textContent = `${number(usage.activeLast24h)} active in the last 24 hours`;
+  $('usage-average').textContent = usage.users ? (usage.refetches / usage.users).toFixed(1) : '—';
+  $('usage-average').nextElementSibling.textContent = usage.users ? `Reopens per user · ${(usage.downloads / usage.users).toFixed(1)} downloads` : 'Average reopens · downloads';
+  $('usage-empty').hidden = usage.recentUsers.length > 0;
+  $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
+    const row = document.createElement('tr');
+    const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    [user.user, number(user.refetches), number(user.downloads), when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
+      const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
+    });
+    return row;
+  }));
   const chart = $('activity-chart');
   chart.replaceChildren();
   const max = Math.max(1, ...data.timeline.map((b) => b.requests));

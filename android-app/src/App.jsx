@@ -8,6 +8,7 @@ import WalletLayout from './WalletLayout.jsx';
 import { loadSettings, saveSettings } from './settings.js';
 import { receiptWallet } from './receipt-wallet.js';
 import { useNativeChrome } from './useNativeChrome.js';
+import { flushUsage, reportUsage } from './usage.js';
 
 const native = Capacitor.isNativePlatform();
 const cleanGuard = () => ({ dirty: false, save: async () => true });
@@ -74,6 +75,7 @@ export default function App() {
     try {
       const { health: body, result } = await checkHealth(settings);
       setHealth({ state: 'ok', body });
+      flushUsage(settings); // Delivers counts saved while the phone was offline.
       note('info', `GET /health ${result.status} in ${result.durationMs} ms`);
     } catch (error) {
       setHealth({ state: 'down', error });
@@ -205,12 +207,16 @@ export default function App() {
     try {
       const { record, file } = await receiptWallet.get(id);
       selectRecord(record, file, productIndex);
+      reportUsage('receipt_refetch', settings);
     } catch (error) { setStorageError(error.message); }
     finally { finish(); }
   });
   const openOriginal = async () => {
     if (!begin('opening')) return;
-    try { await receiptWallet.open(pickedRef.current.record.id); }
+    try {
+      await receiptWallet.open(pickedRef.current.record.id);
+      reportUsage('original_download', settings);
+    }
     catch (error) { setStorageError(error.message); }
     finally { finish(); }
   };

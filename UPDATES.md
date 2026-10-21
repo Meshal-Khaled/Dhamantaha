@@ -229,3 +229,9 @@ Tool: Codex — Developer: Meshal Khaled
 
 Tool: Codex — Developer: Meshal Khaled
 
+## 2026-10-21 16:37 (Asia/Riyadh)
+
+**Update:** Added user monitoring to the Control room. The app now counts two things per anonymous install: how many times a user went back to a saved receipt in the wallet (`receipt_refetch`, counted when a saved receipt is opened from the wallet) and how many times they downloaded or opened the saved original file (`original_download`, the stored original only, never a generated copy; item photos and warranty-terms attachments are not counted). Counts are sent to a new `POST /v1/usage` endpoint (same `X-Client-Key`, 60 reports/minute per IP, JSON only, validated; documented in `API.md` and `/openapi.json`). The app sends only counts and a random install ID made on first run: no receipt, file name, or item leaves the phone. Counts made offline are kept on the phone and delivered together on the next connection. The Ring keeps per-install totals (capped at 5000 installs) and saves them to `usage.json` in `ADMIN_STATE_DIRECTORY` (debounced, and flushed on stop) so they survive restarts. The Monitoring page has four new cards (Receipts reopened, Originals downloaded, App users with active in the last 24 hours, per-user averages) and a User activity table of the 25 most recent installs (8-character ID, reopened, downloaded, first seen, last active). Files: `infrastructure/src/admin/usage.js`, `src/http/usageRoute.js`, `android-app/src/usage.js`, plus edits to `app.js`, `server.js`, `admin/routes.js`, the dashboard, and `App.jsx`. Verified 136 backend tests (1 new) and 43 app tests (4 new), the app build, and the dashboard in the browser against a local mock server with sample counts. Not committed, not deployed to The Ring, and the APK is not rebuilt or installed on the phone yet; until the app update is installed the counters stay at 0.
+
+Tool: Claude Code — Developer: Meshal Khaled
+

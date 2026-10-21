@@ -37,6 +37,15 @@ export function buildOpenApi(config) {
           responses: { 200: json(ref('CoverageResponse'), 'Covered, excluded, and unclear points with exact source quotes.'), 401: error('Unauthorized client.'), 413: error('File too large.'), 422: error('Unreadable terms or invalid file.'), 429: error('Rate limited.'), 502: error('Analysis unavailable.'), 503: error('Budget reached or busy.'), 504: error('Analysis timeout.') },
         },
       },
+      '/v1/usage': {
+        post: {
+          summary: 'Report app usage counts',
+          description: 'The app reports how many times a saved receipt was reopened (`receipt_refetch`) and how many times its original file was downloaded (`original_download`). Counters only, tied to a random install ID; shown on the Monitoring dashboard.',
+          ...(keyRequired ? { security: [{ clientKey: [] }] } : {}),
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['deviceId', 'events'], properties: { deviceId: { type: 'string', pattern: '^[A-Za-z0-9-]{16,64}$' }, events: { type: 'object', additionalProperties: false, minProperties: 1, properties: { receipt_refetch: { type: 'integer', minimum: 1, maximum: 100 }, original_download: { type: 'integer', minimum: 1, maximum: 100 } } } } } } } },
+          responses: { 202: json({ type: 'object', properties: { ok: { type: 'boolean' } } }, 'Counts recorded.'), 400: error('Invalid report.'), 401: error('Unauthorized client.'), 429: error('Rate limited.') },
+        },
+      },
       '/health': {
         get: {
           summary: 'Check that the service is running',
