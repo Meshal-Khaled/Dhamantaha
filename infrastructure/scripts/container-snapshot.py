@@ -9,6 +9,7 @@ import subprocess
 import sys
 
 EVENTS = {"request", "provider_attempt", "server_started", "server_stopping", "request_completed", "request_complete", "request_finished", "analysis_not_configured", "mock_provider_enabled"}
+QR_CONTAINERS = {"dhamantaha-website-website-1", "dhamantaha-qr-1"}
 
 def command(*args):
     result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=5, check=True)
@@ -30,7 +31,7 @@ def safe_logs(raw):
             omitted += 1
             continue
         entry = {"event": event}
-        for name in ("time", "level", "key", "model", "category"):
+        for name in ("time", "level", "key", "model", "category", "route", "method"):
             value = row.get(name)
             if isinstance(value, str) and len(value) <= 100 and re.fullmatch(r"[a-zA-Z0-9_ .:+/\-]+", value) and not re.search(r"AIza|sk-|Bearer", value):
                 entry[name] = value
@@ -68,10 +69,25 @@ def collect():
     rows = []
     for ident in ids:
         info = json.loads(command("docker", "inspect", ident))[0]
+        if info["Name"].lstrip("/") not in QR_CONTAINERS:
+            continue
         # Only the Dhamantaha API's structured metadata is shown as log entries.
-        raw = command("docker", "logs", "--tail", "60", ident) if info["Name"].lstrip("/") == "dhamantaha-infrastructure-1" else ""
+        raw = command("docker", "logs", "--tail", "60", ident)
         rows.append(container_summary(info, raw))
-    return {"collectedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "containers": rows}
+    qr_usage_file = Path("/home/ubuntu/dhamantaha/qr-state/usage.json")
+    qr_usage = None
+    if qr_usage_file.exists():
+        saved = json.loads(qr_usage_file.read_text())
+        users = saved.get("users", {})
+        recent = sorted(users.items(), key=lambda pair: pair[1].get("lastSeen", 0), reverse=True)[:25]
+        stamp = lambda ms: datetime.datetime.fromtimestamp(ms / 1000, datetime.timezone.utc).isoformat()
+        qr_usage = {**saved.get("totals", {}), "users": len(users), "persistent": True,
+                    "unattributedAnalyses": saved.get("unattributedAnalyses", 0),
+                    "activeLast24h": sum(datetime.datetime.now().timestamp() * 1000 - u.get("lastSeen", 0) < 86400000 for u in users.values()),
+                    "recentUsers": [{"user": ident[:8], **{k: u.get(k, 0) for k in ("visits", "refetches", "analyses", "downloads")},
+                                     "firstSeen": stamp(u["firstSeen"]), "lastSeen": stamp(u["lastSeen"]), "containers": u.get("containers", []), "name": u.get("name", ""), "team": u.get("team", "")} for ident, u in recent]}
+        qr_usage["requests"] = saved.get("requests", [])[-100:]
+    return {"collectedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "containers": rows, "qrUsage": qr_usage}
 
 if __name__ == "__main__":
     destination = Path(sys.argv[1])

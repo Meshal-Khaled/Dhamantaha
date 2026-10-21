@@ -17,15 +17,16 @@ export function usageRouter({ config, usage }) {
     clientKeyCheck(config.clientKeys),
     json({ limit: '1kb', type: 'application/json' }),
     (req, res) => {
-      const { deviceId, events } = req.body ?? {};
+      const { deviceId, events, profile } = req.body ?? {};
       if (typeof deviceId !== 'string' || !DEVICE_ID.test(deviceId) || !events || typeof events !== 'object' || Array.isArray(events)) throw invalid();
       const counts = {};
       for (const [name, value] of Object.entries(events)) {
         if (!APP_USAGE_EVENTS.includes(name) || !Number.isSafeInteger(value) || value < 1 || value > MAX_PER_REPORT) throw invalid();
         counts[name] = value;
       }
-      if (!Object.keys(counts).length) throw invalid();
-      usage.record(deviceId, counts);
+      if (profile !== undefined && usage.allowProfiles && (!profile || typeof profile.name !== 'string' || typeof profile.team !== 'string' || profile.name.trim().length < 2 || profile.team.trim().length < 2 || profile.name.length > 60 || profile.team.length > 60)) throw invalid();
+      if (!Object.keys(counts).length && !(usage.allowProfiles && profile)) throw invalid();
+      usage.record(deviceId, counts, profile);
       res.status(202).json({ ok: true });
     },
   );

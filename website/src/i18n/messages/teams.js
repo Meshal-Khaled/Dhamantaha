@@ -4,7 +4,7 @@ export const teams = {
     'teams.tab': 'Send your receipts',
     'teams.title': 'Try Dhamantaha with your own receipts',
     'teams.eyebrow': 'For the teams',
-    'teams.lead': 'Tell us who you are, add your receipts and send. It takes less than a minute.',
+    'teams.lead': 'Add your receipts for analysis. They are processed one at a time and saved in this browser.',
     'teams.preview': 'Design preview: nothing is sent yet.',
     'teams.steps': 'The three steps',
     'teams.step1': 'About you',
@@ -18,7 +18,7 @@ export const teams = {
     'teams.name.placeholder': 'Your full name…',
     'teams.contact': 'Email or phone (optional)',
     'teams.contact.placeholder': 'name@example.com…',
-    'teams.contact.help': 'Only used to reach you about this request.',
+    'teams.contact.help': 'Optional; your email or phone stays in this browser.',
 
     'teams.receipts.title': 'Your receipts',
     'teams.receipts.hint': 'Photos or PDFs, up to {files} files of {mb} MB each.',
@@ -36,7 +36,7 @@ export const teams = {
     'teams.send.title': 'Send',
     'teams.note': 'Anything we should know? (optional)',
     'teams.note.placeholder': 'For example, the kind of products on your receipts…',
-    'teams.consent': 'I agree to share these receipts with the Dhamantaha team.',
+    'teams.consent': 'I agree to send receipts for analysis and show my name and team in the private Dhamantaha dashboard. Originals and results stay in this browser.',
     'teams.send': 'Send request',
     'teams.sending': 'Sending…',
 
@@ -51,8 +51,8 @@ export const teams = {
     'teams.error.consent.required': 'Please agree to share your receipts.',
     'teams.error.send': 'The request could not be sent. Please try again.',
 
-    'teams.done.title': 'Request sent',
-    'teams.done.body': 'Thank you, {team}! We have your receipts.',
+    'teams.done.title': 'Analysis complete',
+    'teams.done.body': 'Thank you, {team}! Your receipt results are below.',
     'teams.done.team': 'Team',
     'teams.done.name': 'Name',
     'teams.done.receipts': 'Receipts',
@@ -93,7 +93,7 @@ export const teams = {
     'teams.name.placeholder': 'الاسم الكامل…',
     'teams.contact': 'البريد الإلكتروني أو الجوال (اختياري)',
     'teams.contact.placeholder': 'name@example.com…',
-    'teams.contact.help': 'نستخدمه فقط للتواصل معكم بخصوص هذا الطلب.',
+    'teams.contact.help': 'اختياري؛ يبقى البريد أو الهاتف في هذا المتصفح.',
 
     'teams.receipts.title': 'فواتيركم',
     'teams.receipts.hint': 'صور أو ملفات PDF، حتى {files} ملفات، وحجم كل ملف حتى {mb} ميغابايت.',
@@ -111,7 +111,7 @@ export const teams = {
     'teams.send.title': 'الإرسال',
     'teams.note': 'هل من ملاحظات؟ (اختياري)',
     'teams.note.placeholder': 'مثال: نوع المنتجات في فواتيركم…',
-    'teams.consent': 'أوافق على مشاركة هذه الفواتير مع فريق ضمنتها.',
+    'teams.consent': 'أوافق على إرسال الفواتير للتحليل وعرض اسمي وفريقي في لوحة ضمنتها الخاصة. تُحفظ الأصول والنتائج في هذا المتصفح.',
     'teams.send': 'إرسال الطلب',
     'teams.sending': 'جارٍ الإرسال…',
 
@@ -126,8 +126,8 @@ export const teams = {
     'teams.error.consent.required': 'يرجى الموافقة على مشاركة الفواتير.',
     'teams.error.send': 'تعذّر إرسال الطلب. أعيدوا المحاولة.',
 
-    'teams.done.title': 'تم إرسال الطلب',
-    'teams.done.body': 'شكرًا لكم، فريق {team}! وصلتنا فواتيركم.',
+    'teams.done.title': 'اكتمل التحليل',
+    'teams.done.body': 'شكرًا لكم، فريق {team}! نتائج الفواتير أدناه.',
     'teams.done.team': 'الفريق',
     'teams.done.name': 'الاسم',
     'teams.done.receipts': 'عدد الفواتير',

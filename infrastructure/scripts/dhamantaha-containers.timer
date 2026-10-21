@@ -3,7 +3,7 @@ Description=Refresh Dhamantaha container status every 15 seconds
 
 [Timer]
 OnBootSec=10
-OnUnitActiveSec=15
+OnUnitActiveSec=3
 AccuracySec=1
 
 [Install]

@@ -48,11 +48,33 @@ test('the same file chosen twice is added once, and the limit on files is enforc
   assert.deepEqual(rejected.map((entry) => entry.reason), ['count', 'count']);
 });
 
-test('until requests are connected, sending is a preview that sends nothing', async () => {
-  assert.equal(REQUESTS_LIVE, false);
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = () => assert.fail('a preview must not make any request');
-  try {
-    assert.deepEqual(await sendRequest(good, one), { preview: true });
-  } finally { globalThis.fetch = originalFetch; }
+test('live QR uploads use only the QR endpoint and preserve per-file results', async () => {
+  assert.equal(REQUESTS_LIVE, true);
+  const calls = [];
+  const wallet = { save: async file => ({ id: file.name }), saveAnalysis: async (id, body) => calls.push(['saved', id, body.merchant]) };
+  const fetchImpl = async (url, init) => { calls.push([url, init.headers]); return { ok: true, json: async () => ({ merchant: 'Demo Store', items: [] }) }; };
+  const result = await sendRequest(good, one, { fetchImpl, wallet, deviceId: 'qr-test-install-1234' });
+  assert.equal(result.results[0].analysis.merchant, 'Demo Store');
+  assert.equal(calls[0][0], '/v1/qr/usage');
+  assert.deepEqual(calls[1], ['/v1/qr/receipts/analyze', { 'X-Install-Id': 'qr-test-install-1234' }]);
+  assert.deepEqual(calls[2], ['saved', 'receipt.jpg', 'Demo Store']);
+});
+
+test('QR failures preserve saved originals and are reported per receipt', async () => {
+  const wallet = { save: async () => ({ id: 'saved' }), saveAnalysis: () => assert.fail('failed analysis must not replace saved data') };
+  const fetchImpl = async url => url.endsWith('/usage') ? { ok: true } : ({ ok: false, json: async () => ({ error: { message: 'Overloaded' } }) });
+  const result = await sendRequest(good, one, { fetchImpl, wallet, deviceId: 'qr-test-install-1234' });
+  assert.equal(result.results[0].id, 'saved');
+  assert.equal(result.results[0].error, 'Overloaded');
+});
+
+test('QR clients wait for a busy backend without duplicating local originals', async () => {
+  let saves = 0; let attempts = 0; let waits = 0;
+  const wallet = { save: async () => { saves++; return { id: 'same-original' }; }, saveAnalysis: async () => {} };
+  const fetchImpl = async url => url.endsWith('/usage') ? { ok: true } : ++attempts < 3
+    ? { ok: false, json: async () => ({ error: { code: 'server_busy' } }) }
+    : { ok: true, json: async () => ({ receipt: { merchantName: 'Demo' }, items: [] }) };
+  const result = await sendRequest(good, one, { wallet, fetchImpl, deviceId: 'qr-test-install-1234', waitImpl: async () => { waits++; } });
+  assert.equal(saves, 1); assert.equal(attempts, 3); assert.equal(waits, 2);
+  assert.equal(result.results[0].analysis.receipt.merchantName, 'Demo');
 });

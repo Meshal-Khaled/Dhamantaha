@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router';
 import { Camera, Check, CircleAlert, CircleCheck, FileImage, FileText, FileUp, LoaderCircle, Lock, Send, Upload, X } from 'lucide-react';
 import Button from '../components/Button.jsx';
 import useNoIndex from '../components/useNoIndex.js';
 import usePageTitle from '../components/usePageTitle.js';
 import { formatNumber } from '../lib/format.js';
 import { formatBytes } from '../lib/receipt-view.js';
-import { FIELD_ORDER, REQUESTS_LIVE, TEAM_LIMITS, addFiles, sendRequest, validateRequest } from '../lib/team-request.js';
+import { FIELD_ORDER, REQUESTS_LIVE, TEAM_LIMITS, addFiles, reportQrVisit, sendRequest, validateRequest } from '../lib/team-request.js';
 import { useSettings } from '../state/settings.jsx';
+import { useWallet } from '../state/wallet.jsx';
 
 // A phone browser opens its camera from a file input; on a computer the same input would only show a file dialog.
 const touchDevice = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
@@ -48,6 +50,8 @@ function Field({ id, label, help, error, children }) {
 export default function Teams() {
   const { t, arabic } = useSettings();
   usePageTitle('teams.tab');
+  const { refresh } = useWallet();
+  useEffect(() => { reportQrVisit().catch(() => {}); }, []);
   useNoIndex();
   const [form, setForm] = useState(empty);
   const [files, setFiles] = useState([]);
@@ -56,6 +60,7 @@ export default function Teams() {
   const [phase, setPhase] = useState('form');
   const [sendFailed, setSendFailed] = useState(false);
   const [done, setDone] = useState(null);
+  const [progress, setProgress] = useState('');
   const [dragging, setDragging] = useState(false);
   const chooseInput = useRef(null);
   const cameraInput = useRef(null);
@@ -95,8 +100,9 @@ export default function Teams() {
     setPhase('sending');
     setSendFailed(false);
     try {
-      const result = await sendRequest(form, files);
-      setDone({ preview: Boolean(result.preview), team: form.team.trim(), name: form.name.trim(), count: files.length });
+      const result = await sendRequest(form, files, { onProgress: (current, total) => setProgress(`${current} / ${total}`) });
+      setDone({ preview: Boolean(result.preview), team: form.team.trim(), name: form.name.trim(), count: files.length, results: result.results });
+      await refresh();
       setPhase('sent');
       window.scrollTo(0, 0);
     } catch {
@@ -132,8 +138,14 @@ export default function Teams() {
           <div><dt>{t('teams.done.receipts')}</dt><dd>{formatNumber(done.count, arabic)}</dd></div>
         </dl>
         {done.preview && <p className="alert alert--warn"><CircleAlert size={18} aria-hidden="true" />{t('teams.done.preview')}</p>}
+        <ul className="summary-list">{done.results?.map((result, index) => <li key={index}>
+          <strong dir="auto">{result.analysis?.receipt?.merchantName || result.name}</strong>
+          <p dir="auto">{result.error || (result.analysis?.items ?? []).map(item => item.displayName || item.description).join(' · ')}</p>
+          {result.id && <Link to={`/receipts/${result.id}`}>{arabic ? 'عرض الفاتورة المحفوظة' : 'Open saved receipt'}</Link>}
+        </li>)}</ul>
         <Button variant="secondary" size="lg" block onClick={again}>{t('teams.done.again')}</Button>
       </section> : <form className="card teams-card" onSubmit={submit} noValidate>
+        {sending && <p role="status">{t('teams.sending')} {progress}</p>}
         <fieldset disabled={sending} className="teams-card__fields">
           <section className="teams-section" aria-labelledby="teams-about">
             <h2 id="teams-about" className="teams-section__head"><span className="teams-section__num" aria-hidden="true">{formatNumber(1, arabic)}</span>{t('teams.about.title')}</h2>

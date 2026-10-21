@@ -77,7 +77,7 @@
             <article class="card stat-card"><span>Downloading originals</span><strong id="usage-downloads">—</strong><small>Saved originals opened or downloaded</small></article>
           </div>
           <section class="card requests-card"><div class="section-title"><div><h2>Activity by user</h2><p class="muted">Anonymous app installs, most recently active first.</p></div><span class="pill">LATEST 25</span></div>
-            <div class="table-scroll"><table><thead><tr><th>User</th><th>Refetches</th><th>Visits</th><th>Analyses</th><th>Originals</th><th>First seen</th><th>Last active</th></tr></thead><tbody id="usage-body"></tbody></table></div>
+            <div class="table-scroll"><table><thead><tr><th>Name / user</th><th>Team</th><th>Refetches</th><th>Visits</th><th>Analyses</th><th>Originals</th><th>Containers used</th><th>First seen</th><th>Last active</th></tr></thead><tbody id="usage-body"></tbody></table></div>
             <div id="usage-empty" class="empty-state"><span>↗</span><strong>No app activity yet.</strong><p>Activity appears when an updated app visits or uses the wallet.</p></div>
           </section>
           <p id="usage-unattributed" class="monitor-footnote" hidden></p>
@@ -85,11 +85,11 @@
           <p class="monitor-footnote">Refetching means reopening a receipt saved on the device. Visits start on first use or after 30 minutes away; short returns from the camera or document picker stay in the same visit. Receipt analyses count once per submitted upload, regardless of provider retries, and exclude warranty explanations. Visits and per-user analysis attribution start with the updated app; earlier values are not reconstructed. Only counts and a random install ID are recorded.</p>
         </section>
         <section id="logs-view" hidden>
-<div class="page-heading"><div><span class="eyebrow">THE RING · OPERATIONS</span><h1>Containers &amp; logs</h1><p class="muted">Service health, assigned Gemini key slots and recent backend events.</p></div><button id="refresh-containers" class="button secondary" type="button">↻ Refresh</button></div>
+<div class="page-heading"><div><span class="eyebrow">QR TRIAL · OPERATIONS</span><h1>Containers &amp; logs</h1><p class="muted">Only the QR website and its shared analysis backend.</p></div><button id="refresh-containers" class="button secondary" type="button">↻ Refresh</button></div>
 <div class="monitor-status"><span id="containers-status" class="badge">Checking containers</span><span id="containers-updated" class="muted"></span></div>
-<div id="container-cards" class="container-grid"></div>
-<section class="card requests-card"><div class="section-title"><div><h2>Recent backend logs</h2><p class="muted">Latest 60 log lines, filtered to operational events. Key values and receipt content are excluded.</p></div></div><pre id="container-events" class="container-events" aria-live="polite">Loading…</pre></section>
-<p class="monitor-footnote">The API shares its Gemini slots across requests; the website forwards analysis to the API. Other Ring services show detected key mounts, which do not prove which key a request used. Raw logs from other services are not displayed. Status refreshes every 15 seconds; stale data is marked.</p>
+<section class="card requests-card"><div class="section-title"><div><h2>Live QR requests</h2><p class="muted">Names, teams, the container used and Gemini key attempts. TEST entries are synthetic verification traffic.</p></div><span class="pill">LATEST 100</span></div><div class="table-scroll"><table><thead><tr><th>Name</th><th>Team</th><th>Container</th><th>Outcome</th><th>Key</th><th>Duration</th><th>Started</th></tr></thead><tbody id="qr-request-body"></tbody></table></div></section><div id="container-cards" class="container-grid"></div>
+<section class="card requests-card"><div class="section-title"><div><h2>QR container logs</h2><p class="muted">Recent website and shared QR backend events. Key values and receipt content are excluded.</p></div></div><pre id="container-events" class="container-events" aria-live="polite">Loading…</pre></section>
+<p class="monitor-footnote">Only the QR website and its shared backend appear here. The QR backend balances all three Gemini keys. User activity records the containers observed handling each visitor. Status refreshes every 15 seconds; stale data is marked.</p>
 </section><footer class="main-footer"><span>Dhamantaha <span lang="ar">· ضمنتها</span></span><span>Built to keep your warranties close.</span></footer>
       </main>
     </div>

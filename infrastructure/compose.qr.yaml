@@ -1,0 +1,33 @@
+services:
+  qr:
+    image: dhamantaha-infrastructure:latest
+    user: "${RING_UID:-1001}:${RING_GID:-1001}"
+    command: [node, src/qr-server.js]
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3100"
+      ANALYSIS_PROVIDER: gemini
+      GEMINI_MODEL: ${QR_GEMINI_MODEL:-gemini-3-flash-preview}
+      GEMINI_API_KEY_FILE: /run/secrets/gemini_api_key
+      GEMINI_FALLBACK_KEY_FILES: /run/secrets/gemini_api_key_2,/run/secrets/gemini_api_key_3
+      GEMINI_FALLBACK_MODELS: ${QR_FALLBACK_MODELS:-gemini-3.5-flash-lite}
+      GEMINI_TIMEOUT_MS: "25000"
+      GEMINI_TOTAL_TIMEOUT_MS: "85000"
+      GEMINI_HEDGE_AFTER_MS: "12000"
+      CLIENT_KEYS: ""
+      ADMIN_STATE_DIRECTORY: /app/state
+      DEBUG_CAPTURE: "false"
+      ENABLE_API_DOCS: "false"
+      TRUST_PROXY: loopback,uniquelocal
+      MAX_CONCURRENT_ANALYSES: "12"
+      RATE_LIMIT_PER_MINUTE: "300"
+      DAILY_PROVIDER_CALL_LIMIT: "500"
+    volumes:
+      - ../qr-state:/app/state
+    secrets: [gemini_api_key, gemini_api_key_2, gemini_api_key_3]
+    read_only: true
+    tmpfs: [/tmp:size=16m]
+    mem_limit: 2048m
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    restart: unless-stopped

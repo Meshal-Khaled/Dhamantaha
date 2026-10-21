@@ -410,7 +410,7 @@ function renderUsers(usage) {
   $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
     const row = document.createElement('tr');
     const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    [user.user, number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
+    [user.name || user.user, user.team || '—', number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), user.containers?.length ? user.containers.join(' → ') : 'Not recorded', when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
       const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
     });
     return row;
@@ -453,7 +453,7 @@ async function start() {
     document.title = `Dhamantaha · ${pageTitle}`;
     if (isLogs) {
       await refreshContainers();
-      monitoringTimer = setInterval(() => { if (!document.hidden) refreshContainers(); }, 15_000);
+      monitoringTimer = setInterval(() => { if (!document.hidden) refreshContainers(); }, 3000);
     } else if (isMonitoring) {
       await refreshMonitoring();
       monitoringTimer = setInterval(() => { if (!document.hidden) refreshMonitoring(); }, 15_000);
@@ -473,9 +473,14 @@ async function refreshContainers() {
   $('refresh-containers').disabled = true;
   try {
     const data = await api('/containers');
-    $('containers-status').textContent = !data.available ? 'Collector unavailable' : data.stale ? 'Stale snapshot' : `${data.containers.filter(c => c.status === 'running').length} containers running`;
+    $('containers-status').textContent = !data.available ? 'Collector unavailable' : data.stale ? 'Stale snapshot' : `${data.containers.filter(c => c.status === 'running').length} QR containers running`;
     $('containers-status').classList.toggle('warning', !data.available || data.stale);
-    $('containers-updated').textContent = data.collectedAt ? `Collected ${new Date(data.collectedAt).toLocaleString()} · Every 15s` : data.message;
+    $('containers-updated').textContent = data.collectedAt ? `Collected ${new Date(data.collectedAt).toLocaleString()} · Every 3s` : data.message;
+    $('qr-request-body').replaceChildren(...(data.requests ?? []).slice().reverse().map(request => {
+      const row = document.createElement('tr');
+      [request.name || request.user, request.team || '—', request.container, request.state, request.winningKey || request.keys.join(', ') || '—', request.durationMs === undefined ? '…' : `${(request.durationMs / 1000).toFixed(1)}s`, new Date(request.startedAt).toLocaleTimeString()].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); });
+      return row;
+    }));
     $('container-cards').replaceChildren(...data.containers.map(c => {
       const card = document.createElement('article'); card.className = 'card container-card';
       const title = document.createElement('h2'); title.textContent = c.name; card.append(title);

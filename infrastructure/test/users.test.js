@@ -18,7 +18,7 @@ test('user counters migrate existing state, keep all four activities, and persis
     await usage.flush();
     const state = createUsage({ directory: dir, now: () => 3000 }).snapshot();
     assert.deepEqual([state.refetches, state.visits, state.analyses, state.downloads, state.unattributedAnalyses], [4, 2, 2, 2, 1]);
-    assert.deepEqual(state.recentUsers[0], { user: 'aaaaaaaa', refetches: 4, visits: 2, analyses: 1, downloads: 2, firstSeen: new Date(1000).toISOString(), lastSeen: new Date(3000).toISOString() });
+    assert.deepEqual(state.recentUsers[0], { user: 'aaaaaaaa', refetches: 4, visits: 2, analyses: 1, downloads: 2, firstSeen: new Date(1000).toISOString(), lastSeen: new Date(3000).toISOString(), containers: [] });
     assert.equal(JSON.parse(await readFile(join(dir, 'usage.json'))).totals.visits, 2);
   } finally { await rm(dir, { recursive: true, force: true }); }
 });

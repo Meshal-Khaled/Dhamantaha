@@ -149,3 +149,7 @@ Users can attach a warranty-terms photo or PDF to each item. AI may summarize on
 - [Gemini API key security](https://ai.google.dev/gemini-api/docs/api-key)
 - [Gemini image understanding](https://ai.google.dev/gemini-api/docs/image-understanding)
 - [Gemini PDF document understanding](https://ai.google.dev/gemini-api/docs/document-processing)
+
+## QR presentation operations — 21 October 2026
+
+The QR website routes presentation traffic to one dedicated shared QR backend, which rotates the three registered Ring Gemini keys and supports 12 concurrent analyses. The control panel exposes only QR containers on its logs page. With explicit submission consent, a participant's name and team are kept as private operational metadata and shown with their container path and request outcome; contacts/notes are not submitted, labels are excluded from Gemini input and raw Docker logs, and no receipt body is persisted by this feature. The live request history is bounded to 100 entries. Historical users without container attribution remain unknown. A real 25-visitor burst exposed provider quota failures and does not establish capacity for 30 simultaneous visitors; project quotas or pacing remain to be resolved.

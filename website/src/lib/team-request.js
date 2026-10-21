@@ -1,11 +1,29 @@
 // What the teams page asks for, and what makes a request acceptable. Pure functions, tested without a browser.
 import { receiptMime } from './receipt-store.js';
+import { receiptWallet } from './receipt-store.js';
 
-/**
- * Whether requests really go to The Ring. Until the plan for handling them is agreed this stays false: the page
- * works and can be reviewed, shows a "design preview" notice, and sends nothing anywhere.
- */
-export const REQUESTS_LIVE = false;
+/** The QR trial uses its dedicated shared backend, with provider credentials kept on The Ring. */
+export const REQUESTS_LIVE = true;
+let memoryId;
+export function qrDeviceId() {
+  try {
+    let id = localStorage.getItem('dhamantaha-qr-install');
+    if (!/^[a-zA-Z0-9-]{16,64}$/.test(id ?? '')) { id = crypto.randomUUID(); localStorage.setItem('dhamantaha-qr-install', id); }
+    return id;
+  } catch { return memoryId ??= crypto.randomUUID(); }
+}
+
+let visitPending;
+export async function reportQrVisit() {
+  if (visitPending) return visitPending;
+  try { if (Date.now() - Number(sessionStorage.getItem('dhamantaha-qr-visit')) < 30 * 60_000) return; } catch {}
+  visitPending = (async () => {
+    const response = await fetch('/v1/qr/usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId: qrDeviceId(), events: { app_visit: 1 } }), signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new Error('Visit report failed');
+    try { sessionStorage.setItem('dhamantaha-qr-visit', String(Date.now())); } catch {}
+  })();
+  try { await visitPending; } finally { visitPending = null; }
+}
 
 export const TEAM_LIMITS = { files: 10, bytes: 10 * 1024 * 1024, note: 500, text: 60 };
 
@@ -52,14 +70,34 @@ export function addFiles(current, incoming, limits = TEAM_LIMITS) {
   return { files, rejected };
 }
 
-/**
- * Sends a request. While REQUESTS_LIVE is false this only waits a moment and says it was a preview, so the page
- * can be reviewed end to end. The real thing is added here once the plan for handling requests is agreed.
- */
-export async function sendRequest(request, files) {
-  if (!REQUESTS_LIVE) {
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    return { preview: true };
+/** Save locally first, then analyze. Form names/contact/notes stay in the browser. */
+export async function sendRequest(request, files, { fetchImpl = fetch, wallet = receiptWallet, deviceId = qrDeviceId(), onProgress = () => {}, waitImpl = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  if (Object.keys(validateRequest(request, files)).length) throw new Error('Check the form before sending.');
+  const registration = await fetchImpl('/v1/qr/usage', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId, events: {}, profile: { name: request.name.trim(), team: request.team.trim() } }), signal: AbortSignal.timeout(10_000) });
+  if (!registration.ok) throw new Error('Could not register the request. Please try again.');
+  const results = [];
+  // One receipt at a time per visitor bounds uploads and keeps each request below the proxy deadline.
+  for (const [index, file] of files.entries()) {
+    onProgress(index + 1, files.length);
+    let id;
+    try {
+      const saved = await wallet.save(file);
+      id = saved.id;
+      const form = new FormData(); form.append('file', file, file.name);
+      let body;
+      for (let attempt = 0; ; attempt++) {
+        const response = await fetchImpl('/v1/qr/receipts/analyze', { method: 'POST', headers: { 'X-Install-Id': deviceId }, body: form, signal: AbortSignal.timeout(95_000) });
+        body = await response.json();
+        if (!response.ok && body.error?.code === 'server_busy' && attempt < 8) {
+          await waitImpl(5000 + Math.floor(Math.random() * 500));
+          continue;
+        }
+        if (!response.ok) throw new Error(body.error?.message || 'Receipt analysis failed.');
+        break;
+      }
+      await wallet.saveAnalysis(id, body);
+      results.push({ id, name: file.name, analysis: body });
+    } catch (error) { results.push({ id, name: file.name, error: error.message }); }
   }
-  throw new Error(`Requests are not connected yet (${request.team}, ${files.length} files).`);
+  return { preview: false, results };
 }
