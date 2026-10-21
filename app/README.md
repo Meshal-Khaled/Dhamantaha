@@ -13,7 +13,7 @@ The app uses the design from the `Frontend-UI` branch, preserved in `../design/`
 - **Add receipt** opens the camera or photo/PDF picker. The original is saved before analysis and can also be edited manually offline.
 - **Settings** saves Arabic/English, light/dark appearance, and normal/large text separately from the existing API settings, preserving previously configured client keys. The real Android app-lock control remains available. Connection settings and request diagnostics are under **Analysis connection**.
 - Purchase details support editing individual products, merchant, price, purchase date, and warranty/return durations. Owner-entered policy durations are stored with the local analysis and do not claim the receipt printed those terms. Month/year calculations clamp to the final day of the target month. Printed warranty dates stay fixed; calculated warranties follow the purchase date. Re-analysis replaces manual edits.
-- The frontend's sample purchases and pretend sign-out/Face ID controls are replaced by actual wallet data and the existing native app lock. Scheduled phone notifications are not enabled; upcoming deadlines appear on Home. Refund approval is not inferred.
+- The frontend's sample purchases and pretend sign-out/Face ID controls are replaced by actual wallet data and the existing native app lock. Local Android deadline reminders are available in Settings → Notifications and are off by default; upcoming deadlines also appear on Home. Refund approval is not inferred.
 - Branding and CSS are bundled in the APK; no Google Fonts request is needed to render the interface offline.
 
 ## Device receipt wallet
@@ -66,3 +66,18 @@ The API address defaults to `https://dhamantaha.arc-homlab.com/v1`. The Ring req
 - `android/` — the generated Capacitor Android project
 
 Run `npm test` and `npm run build` for JavaScript checks. With a device connected, run `npm run android:test-storage` for the isolated native receipt-storage and app-lock preference tests. It installs with `adb install -r` and invokes instrumentation directly, preserving app data. Tests use unique temporary directories. Avoid Gradle's `connectedDebugAndroidTest` task on a phone with saved data: that task can uninstall the target app afterward.
+
+## Screen transitions, expired warranties and reminders
+
+Screen changes use a short fade/slide, disabled by the phone/browser's reduced-motion preference. Expired warranties show **Expired** with a shield-X icon and no progress bar in receipt cards and product details; unknown dates stay unknown.
+
+In the installed Android app, **Settings → Notifications** enables private local reminders for known warranty, refund and exchange deadlines. Choose one or seven days before the deadline. Android notification permission is requested only when you enable reminders or explicitly retry permission. Browser previews show an availability explanation instead of a pretend switch.
+
+- One generic reminder per calendar day, around 09:00 phone local time. No merchants, filenames, amounts, receipt IDs or original contents appear in notification text. No reminder data is sent to a server.
+- Dates come from existing local/receipt-printed policies. Unknown dates are skipped. Reminders whose selected lead time has already passed are not sent retroactively.
+- Saving/editing/deleting wallet records, language/lead-time changes and app resume rebuild the pending reminder list. Disabling cancels pending wallet reminders; other notification IDs are preserved. Scheduling errors remain visible with Retry.
+- The nearest 64 reminder days are scheduled. Open the app periodically to refresh later reminders and after changing device time/time zone. Android restores pending schedules after reboot through the official Capacitor plugin.
+- Notifications are deliberately inexact: no exact-alarm permission or special alarm access is requested. Android battery limits, device notification/channel settings and private-space locks can delay or suppress delivery. Use Home to check important dates.
+- Integrates `@capacitor/local-notifications` 8.3.1. Use `npm ci`, `npm run build`, `npx cap sync android` before building the APK (the existing Android build/install scripts already perform build/sync). Install via `adb install -r` to preserve the wallet.
+
+Device acceptance: on an authorized Android phone, verify grant/deny/revoke permission, change lead time, edit/delete a deadline, disable/re-enable, reboot, time-zone changes, app-lock coexistence and actual notification delivery. These require a device; JavaScript scheduling tests and browser previews do not prove OS delivery.

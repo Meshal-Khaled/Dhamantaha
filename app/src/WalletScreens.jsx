@@ -1,5 +1,6 @@
+import NotificationSettings from './NotificationSettings.jsx';
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
-import { Camera, Check, ChevronDown, CircleCheck, FileText, Mail, Phone, Plus, ReceiptText, Search, ShieldCheck, ShieldQuestion, Undo2 } from 'lucide-react';
+import { Camera, Check, ChevronDown, CircleCheck, FileText, Mail, Phone, Plus, ReceiptText, Search, ShieldCheck, ShieldX, ShieldQuestion, Undo2 } from 'lucide-react';
 import { filterReceiptCards, sortReceiptCards, cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary, warrantyTone } from './wallet-view.js';
 import { fieldLabel, formatDate, formatMoney, formatNumber } from './format.js';
 import AppLockSettings from './AppLockSettings.jsx';
@@ -23,8 +24,9 @@ function PeriodLine({ date, days, arabic, label, kind }) {
 function WarrantyTimer({ entry, arabic, label }) {
   const t = translate(arabic);
   const status = warrantyTone(entry.warrantyDays, entry.warrantyProgress);
+  if (status === 'ended') return <div className="warranty-expired"><strong>{t('Expired', 'منتهي الصلاحية')}</strong><ShieldX size={19} aria-hidden="true" /></div>;
   return <div className={`warranty-timer ${status}`}>
-    <div className="warranty-heading"><span>{status !== 'ended' && (label || t('Warranty', 'الضمان'))} <Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></span><ShieldCheck aria-hidden="true" size={17} /></div>
+    <div className="warranty-heading"><span>{label || t('Warranty', 'الضمان')} <Deadline date={entry.warrantyEnd} days={entry.warrantyDays} arabic={arabic} /></span><ShieldCheck aria-hidden="true" size={17} /></div>
     <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${formatNumber(entry.warrantyProgress, arabic)}%`}>
       <span className="warranty-fill" style={{ transform: `scaleX(${(entry.warrantyProgress ?? 0) / 100})` }} />
     </div>
@@ -99,7 +101,7 @@ export function ReceiptsScreen({ saved, arabic, busy, loading, onOpen, onAdd }) 
   </>;
 }
 
-export function SettingsScreen({ settings, appearance, onAppearance, onSave, onGuard, arabic, health, onRetry, log }) {
+export function SettingsScreen({ reminders, settings, appearance, onAppearance, onSave, onGuard, arabic, health, onRetry, log }) {
   const t = translate(arabic);
   const [draft, setDraft] = useState(settings);
   const [baseline, setBaseline] = useState(settings);
@@ -121,8 +123,8 @@ export function SettingsScreen({ settings, appearance, onAppearance, onSave, onG
     <section className="settings-section"><h2>{t('Language', 'اللغة')}</h2><div className="card settings-card">{choices('language', [['ar', 'العربية'], ['en', 'English']])}</div></section>
     <section className="settings-section"><h2>{t('Receipt details', 'تفاصيل الفاتورة')}</h2><div className="card settings-card"><strong>{t('Price of an item bought more than once', 'سعر المنتج المشترى بأكثر من قطعة')}</strong>{choices('priceView', [['unit', t('Quantity × price', 'الكمية × السعر')], ['total', t('Item total', 'إجمالي المنتج')]])}<p className="tip">{t('Example', 'مثال')}: <bdi>{appearance.priceView === 'total' ? formatMoney(100, 'SAR', arabic) : `${formatNumber(2, arabic)} × ${formatMoney(50, 'SAR', arabic)}`}</bdi></p></div></section>
     <section className="card"><AppLockSettings arabic={arabic} /></section>
+    <NotificationSettings reminders={reminders} arabic={arabic} />
     <section className="settings-section"><h2>{t('Contact us', 'تواصل معنا')}</h2><div className="card contact-card"><p>{t('Questions, feedback, or help with Dhamantaha?', 'لديك سؤال أو اقتراح أو تحتاج مساعدة مع ضمنتها؟')}</p><a className="secondary" href="mailto:arcos.workspace@gmail.com?subject=Dhamantaha%20support"><Mail size={18} aria-hidden="true" /><bdi dir="ltr">arcos.workspace@gmail.com</bdi></a></div></section>
-    <p className="tip">{t('Upcoming deadlines appear on Home. Scheduled phone notifications are not enabled yet.', 'تظهر المواعيد القريبة في الرئيسية. إشعارات الهاتف المجدولة غير مفعّلة بعد.')}</p>
     <details className="card connection"><summary>{t('Analysis connection', 'اتصال تحليل الفواتير')}</summary><p className="tip">{health.state === 'ok' ? t('Connected to The Ring', 'متصل بـ The Ring') : health.state === 'checking' ? t('Connecting…', 'جارٍ الاتصال…') : t('Offline. Your saved receipts are available.', 'غير متصل. الفواتير المحفوظة متاحة.')}</p><button className="link" onClick={onRetry}>{t('Check connection', 'فحص الاتصال')}</button>
       <form ref={form} onSubmit={(event) => { event.preventDefault(); save(); }}>
         <label className="field">{t('API address', 'عنوان الخدمة')}<input dir="ltr" type="url" required name="api-address" value={draft.baseUrl} onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })} autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false} /></label>

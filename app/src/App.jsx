@@ -1,3 +1,4 @@
+import { useDeadlineReminders } from './useDeadlineReminders.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
@@ -24,6 +25,8 @@ export default function App() {
   const [page, setPage] = useState('home');
   const [saved, setSaved] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
+  const [savedReady, setSavedReady] = useState(false);
+  const reminders = useDeadlineReminders({ saved, ready: savedReady, loading: loadingSaved, arabic: appearance.language === 'ar' });
   const [storageError, setStorageError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmAnalyze, setConfirmAnalyze] = useState(false);
@@ -95,7 +98,7 @@ export default function App() {
     setLoadingSaved(true);
     try {
       const records = await receiptWallet.listAll();
-      if (generation === refreshGeneration.current) setSaved(records);
+      if (generation === refreshGeneration.current) { setSaved(records); setSavedReady(true); }
     } catch (error) {
       if (generation === refreshGeneration.current) setStorageError(error.message);
     } finally {
@@ -366,5 +369,5 @@ export default function App() {
   };
   useNativeChrome({ theme: appearance.theme, onBack: handleBack, canGoBack: page !== 'home' || busy || !!leaveDialog || confirmAnalyze || confirmDelete });
 
-  return <WalletLayout wallet={{ appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, pendingCoverage, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, setEditing, connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave, saveItemAsset, takeItemPhoto, explainItem, retryCoverage, openItemAsset }} />;
+  return <WalletLayout wallet={{ reminders, appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, pendingCoverage, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, setEditing, connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave, saveItemAsset, takeItemPhoto, explainItem, retryCoverage, openItemAsset }} />;
 }

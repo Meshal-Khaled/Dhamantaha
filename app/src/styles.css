@@ -270,3 +270,10 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .spending-card { margin: 0; min-width: 0; }
 .spending-card h2 { font-size: var(--text-base); }
 .spending-total { font-size: calc(26px * var(--scale)); font-weight: 700; color: var(--green); overflow-wrap: anywhere; margin-block: 12px; }
+
+.screen-transition { animation: screen-enter 180ms ease-out both; }
+@keyframes screen-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.nav-icon { transition: background-color 160ms ease, color 160ms ease; }
+.warranty-expired { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-radius: 12px; background: var(--bg); color: var(--bad); font-size: var(--text-sm); }
+.warranty-expired svg { flex: none; }
+@media (prefers-reduced-motion: reduce) { .screen-transition { animation: none; } .nav-icon { transition: none; } }
