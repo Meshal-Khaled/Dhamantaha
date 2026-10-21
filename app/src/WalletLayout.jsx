@@ -1,5 +1,5 @@
 import AnalystScreen from './AnalystScreen.jsx';
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { ArrowLeft, BarChart3, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
 import { HomeScreen, ReceiptsScreen, SettingsScreen, ResultView, ReceiptEditor, translate } from './WalletScreens.jsx';
 import brand from '../resources/app-icon.png';
@@ -39,6 +39,21 @@ function AnalysisStatus({ arabic, elapsed }) {
 export default function WalletLayout({ wallet: w }) {
   const arabic = w.appearance.language === 'ar';
   const t = translate(arabic);
+  const main = useRef(null);
+  useLayoutEffect(() => {
+    const node = main.current;
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (!node?.animate || motion.matches) return;
+    const offset = getComputedStyle(node).getPropertyValue('--screen-offset').trim() || '32px';
+    // Explicitly replay on committed navigation, including receipt changes.
+    const animation = node.animate([
+      { opacity: 0, transform: `translateX(${offset})` },
+      { opacity: 1, transform: 'translateX(0)' },
+    ], { duration: 360, easing: 'cubic-bezier(.2, .75, .25, 1)' });
+    const reduceMotion = () => { if (motion.matches) animation.cancel(); };
+    motion.addEventListener?.('change', reduceMotion);
+    return () => { animation.cancel(); motion.removeEventListener?.('change', reduceMotion); };
+  }, [w.page, w.picked?.record.id]);
   useEffect(() => {
     if (!w.editing) return;
     const frame = requestAnimationFrame(() => document.querySelector('.editor-card')?.scrollIntoView({ block: 'start' }));
@@ -49,7 +64,7 @@ export default function WalletLayout({ wallet: w }) {
   return <div className={`app theme-${w.appearance.theme} font-${w.appearance.font}`} dir={arabic ? 'rtl' : 'ltr'} lang={w.appearance.language}>
     <div className="phone">
       <header className="head"><button className="brand" disabled={w.busy} onClick={() => w.navigate('home')} aria-label={t('Dhamantaha Home', 'ضمنتها الرئيسية')}><img src={brand} width="46" height="46" alt="" /><strong>{t('Dhamantaha', 'ضمنتها')}</strong></button><span className="private-badge"><ShieldCheck size={15} aria-hidden="true" />{t('On your device', 'على جهازك')}</span></header>
-      <main key={w.page} className="main screen-transition" id="main-content" aria-busy={w.busy}>
+      <main ref={main} key={w.page} className="main screen-transition" id="main-content" aria-busy={w.busy}>
         {w.storageError && <section className="card error" role="alert"><p>{localizeError(w.storageError, arabic)}</p><button className="link" disabled={w.busy} onClick={w.refreshSaved}>{t('Reload receipts', 'إعادة تحميل الفواتير')}</button></section>}
         {w.busy && w.phase !== 'analyzing' && <p role="status" className="operation-status"><LoaderCircle className="spin" size={17} aria-hidden="true" />{w.phase === 'explaining' ? t('Reading the warranty terms…', 'جارٍ قراءة شروط الضمان…') : w.phase === 'saving' ? t('Saving on this device…', 'جارٍ الحفظ على جهازك…') : w.phase === 'deleting' ? t('Deleting receipt…', 'جارٍ حذف الفاتورة…') : w.phase === 'photographing' ? t('Opening the camera…', 'جارٍ فتح الكاميرا…') : t('Opening receipt…', 'جارٍ فتح الفاتورة…')}</p>}
         {w.page === 'home' && <HomeScreen saved={w.saved} arabic={arabic} busy={w.busy} loading={w.loadingSaved} onNavigate={w.navigate} onOpen={w.openReceipt} />}

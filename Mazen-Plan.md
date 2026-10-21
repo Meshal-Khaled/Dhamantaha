@@ -332,3 +332,11 @@ Developer: Mazen Al-Malki. Tool: Codex.
 - Use at most one small decorative emoji per screen: receipt on first-use Home/Add, a greeting on populated Home, and a chart on Analyst. Keep text labels, vector navigation/status icons and the existing layout. Hide decorative emoji from screen-reader names.
 - Clip horizontal transition overflow without adding new UI controls or changing wallet, notification, storage or analysis behavior.
 - Validation: all 59 existing app tests and the production web build passed. Eight Arabic/English × light/dark × normal/large Chromium combinations at 320px passed all five navigation destinations, animation timing/direction, emoji restraint, reduced motion and no horizontal overflow/runtime errors. Refreshed the standalone sample-data HTML. Native APK/device checks were not repeated for this presentation-only change.
+
+## 18. Visible navigation replay and Receipts emoji
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Replay navigation via the browser/WebView animation API on every committed page or selected-receipt change: 360 ms fade with a 32 px slide, mirrored for RTL. Cancel outgoing animations and honor reduced motion, including preference changes during playback. No navigation delays, duplicate screens or changes to unsaved-edit guards.
+- Add a single decorative 🧾 to the Receipts heading, retaining its readable accessible text label.
+- Browser verification measures actual transform/opacity changes, rather than only checking animation configuration. Eight language/theme/text-size combinations at 320px passed all destinations, repeated navigation, RTL direction, Receipts emoji/accessibility, reduced motion and no overflow/runtime errors. Existing 59 app tests and production build passed. Publish a newly named standalone mock-data preview so earlier downloaded copies are distinguishable. Native APK/device tests were not repeated for this UI-only patch.

@@ -271,10 +271,9 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .spending-card h2 { font-size: var(--text-base); }
 .spending-total { font-size: calc(26px * var(--scale)); font-weight: 700; color: var(--green); overflow-wrap: anywhere; margin-block: 12px; }
 
-.screen-transition { --screen-offset: 12px; animation: screen-enter 240ms cubic-bezier(.2, .7, .2, 1) both; }
-[dir=rtl] .screen-transition { --screen-offset: -12px; }
+.screen-transition { --screen-offset: 32px; }
+[dir=rtl] .screen-transition { --screen-offset: -32px; }
 .phone { overflow-x: clip; }
-@keyframes screen-enter { from { opacity: 0; transform: translateX(var(--screen-offset)); } to { opacity: 1; transform: translateX(0); } }
 .nav-icon { transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; }
 .nav button.active .nav-icon { transform: translateY(-2px); }
 .btn, .secondary, .icon-button { transition: background-color 160ms ease, transform 120ms ease; }

@@ -362,3 +362,10 @@ Tool: Codex — Developer: Mazen Al-Malki
 **Update:** Polished Android navigation with 240 ms fade/slide transitions mirrored for RTL, gentle selected-tab feedback and subtle button press states. Added restrained decorative emoji (maximum one per screen) to first-use Home/Add, populated Home greeting and Analyst; preserved plain text labels and existing vector icons. Reduced-motion settings disable the new movements, and horizontal transition clipping prevents page overflow. Updated Mazen-Plan.md and the downloadable sample-data preview. All 59 app tests and Vite production build passed. Chromium verified all five destinations across 8 language/theme/text-size combinations at 320px, including timing/direction, emoji restraint, reduced motion and no overflow/runtime errors. Native APK/device checks were not repeated for this UI-only patch. Wallet calculations, reminders, storage, website and backend behavior unchanged.
 
 Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 01:16 (Asia/Riyadh)
+
+**Update:** Made Android navigation visibly replay a 360 ms fade/32 px slide using the Web Animations API after each committed page/receipt change, with RTL reversal, cleanup of previous animations and reduced-motion support. Added the requested decorative receipt emoji to the Receipts heading without changing its screen-reader name. Browser checks measured actual start/mid/end movement and opacity across repeated navigation in all five destinations for 8 language/theme/text-size combinations at 320px; reduced motion, accessible heading, no overflow and no runtime errors passed. Existing 59 app tests and production build passed. Updated Mazen-Plan.md and generated a newly named standalone mock-data preview outside Git. Native APK/device checks were not repeated; wallet data, notifications, calculations, website and backend unchanged.
+
+Tool: Codex — Developer: Mazen Al-Malki
