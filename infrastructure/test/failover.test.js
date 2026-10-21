@@ -33,6 +33,28 @@ function chain(behave, options = {}) {
 }
 
 describe('Gemini failover', () => {
+  it('balances 30 simultaneous requests over three keys with stable trace slots', async () => {
+    const { provider, calls } = chain((key) => ({ key }));
+    const traces = Array.from({ length: 30 }, () => []);
+    const results = await Promise.all(traces.map((trace) => provider.analyze({ trace })));
+    for (const key of ['k1', 'k2', 'k3']) {
+      assert.equal(results.filter((result) => result.key === key).length, 10);
+      assert.equal(calls.filter((call) => call === `${key}/primary`).length, 10);
+    }
+    traces.forEach((trace, index) => assert.equal(trace[0].key, `key ${index % 3 + 1}`));
+  });
+
+  it('preserves failover after rotating the starting key', async () => {
+    const { provider } = chain((key) => {
+      if (key === 'k2') throw rejectedKey();
+      return { key };
+    });
+    assert.deepEqual(await provider.analyze({}), { key: 'k1' });
+    const trace = [];
+    assert.deepEqual(await provider.analyze({ trace }), { key: 'k3' });
+    assert.deepEqual(trace.map((entry) => entry.key), ['key 2', 'key 3']);
+  });
+
   it('answers from the first key and model when they work', async () => {
     const { provider, calls } = chain(() => ({ readable: true }));
     assert.deepEqual(await provider.analyze({}), { readable: true });

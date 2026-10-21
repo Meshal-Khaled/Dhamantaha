@@ -1,0 +1,7 @@
+# Presentation capacity; keeps the normal daily provider budget and secret mounts.
+# docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml -f compose.presentation.yaml up -d
+services:
+  infrastructure:
+    environment:
+      MAX_CONCURRENT_ANALYSES: "12"
+      RATE_LIMIT_PER_MINUTE: "120"

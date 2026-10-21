@@ -171,3 +171,9 @@ Then give the frontend developer the base URL `https://dhamantaha.arc-homlab.com
 | Everyone gets `429 rate_limited` | `TRUST_PROXY` is not `loopback,uniquelocal`, so every request looks like it comes from cloudflared. |
 | `/health` shows `"provider": null` | Key or model is missing in `.env`; rerun `npm run setup`, then `docker compose up -d --force-recreate`. |
 | `502 analysis_unavailable` | Gemini rejected the key or model. Logs show the category: `docker compose logs --tail 50`. |
+
+## Presentation capacity — 21 October 2026
+
+Use `docker compose -p dhamantaha -f compose.yaml -f compose.ring.yaml -f compose.presentation.yaml up -d` to reproduce the presentation settings: 12 concurrent analyses, 120 requests/minute/IP, 2 GiB memory. The daily budget remains 500 provider calls. New requests rotate their starting Gemini key; each retains the complete existing fallback chain. The API and website containers remain separate, with one API process owning persistent usage/provider state.
+
+All 150 backend tests pass locally and in the release image, including 30 concurrent simulated requests split evenly across three keys. Public health and both containers verified healthy. This is not a live 30-upload load test. Primary-model probes returned 503 on all keys; fallback probes returned text on keys 1/2 and an empty successful response on key 3 with a small token limit. Gemini quotas apply per project, so three keys do not prove three independent quota pools. Backup: `../backups/pre-presentation-20261021-160052`; rollback image: `dhamantaha-infrastructure:pre-presentation-20261021-160052`. To roll back, restore the backed-up infrastructure folder and previous image, then run the original two-file Compose command. Keep current state/ intact.

@@ -14,7 +14,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=16m
-    mem_limit: 768m
+    mem_limit: 2048m
     security_opt:
       - no-new-privileges:true
     cap_drop:
