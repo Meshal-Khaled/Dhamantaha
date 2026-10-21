@@ -138,6 +138,10 @@ Include an image capture option for testing on a phone where supported. Camera a
 - Local saving, viewing, editing, deletion, and reminders work without calling the analysis API again. New receipt analysis requires connectivity.
 - Setup instructions explain The Ring configuration, environment variables, starting the server, local client storage, storage-loss behavior, and phone testing.
 
+## Warranty Coverage Explainer rule
+
+Users can attach a warranty-terms photo or PDF to each item. AI may summarize only what appears covered, excluded, or unclear in the supplied terms, with exact supporting quotations and printed clause/page references when available. Do not infer coverage from a warranty duration, brand, store name, outside knowledge, or law, and do not promise claim acceptance. Show the original source wording alongside the summary so the user can check it before contacting the provider. If the receipt-analysis payload already includes an evidence-backed `items[].warranty.coverage`, display it without another AI request. Missing terms remain unknown. Product photos stay local and are not sent for warranty explanation; explaining attached terms is a separate explicit action. Save attachments and summaries per item on the device, preserve their association when a receipt is re-analyzed, and delete them with the receipt.
+
 ## References
 
 - [Express documentation](https://expressjs.com/)
