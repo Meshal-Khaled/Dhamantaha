@@ -12,7 +12,8 @@
     "android:build": "node scripts/android.js build",
     "android:install": "node scripts/android.js install",
     "android:logs": "node scripts/android.js logs",
-    "android:test-storage": "node scripts/android.js storage-test"
+    "android:test-storage": "node scripts/android.js storage-test",
+    "test:navigation": "playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
+    "@playwright/test": "1.64.1",
     "@vitejs/plugin-react": "^6.1.2",
     "vite": "^8.3.4"
   }

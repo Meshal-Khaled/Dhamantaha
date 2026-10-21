@@ -271,15 +271,27 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .spending-card h2 { font-size: var(--text-base); }
 .spending-total { font-size: calc(26px * var(--scale)); font-weight: 700; color: var(--green); overflow-wrap: anywhere; margin-block: 12px; }
 
-.screen-transition { --screen-offset: 32px; }
-[dir=rtl] .screen-transition { --screen-offset: -32px; }
 .phone { overflow-x: clip; }
 .nav-icon { transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; }
-.nav button.active .nav-icon { transform: translateY(-2px); }
 .btn, .secondary, .icon-button { transition: background-color 160ms ease, transform 120ms ease; }
 .btn:active:not(:disabled), .secondary:active:not(:disabled), .icon-button:active:not(:disabled) { transform: translateY(1px); }
 .heading-emoji { display: inline-block; margin-inline-end: .4em; font-size: .85em; line-height: 1; vertical-align: baseline; }
 .warranty-expired { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-radius: 12px; background: var(--bg); color: var(--bad); font-size: var(--text-sm); }
 .warranty-expired svg { flex: none; }
-@media (prefers-reduced-motion: reduce) { .screen-transition { animation: none; } .nav-icon, .btn, .secondary, .icon-button { transition: none; }
+@media (prefers-reduced-motion: reduce) { .nav-icon, .btn, .secondary, .icon-button { transition: none; }
   .nav button.active .nav-icon, .btn:active:not(:disabled), .secondary:active:not(:disabled), .icon-button:active:not(:disabled) { transform: none; } }
+
+/* Navigation is driven by the actual App commits, not keyed screen remounts. */
+.navigation-stage { position: relative; z-index: 2; background: var(--bg); }
+.navigation-stage:focus { outline: none; }
+.route-pane[hidden] { display: none !important; }
+.navigation-snapshot { position: fixed; overflow: hidden; pointer-events: none; contain: layout paint; }
+.navigation-snapshot .main { background: var(--bg); }
+.nav button { position: relative; z-index: 1; }
+.nav button.active .nav-icon { background: transparent; transform: none; }
+.tab-indicator { position: absolute; inset: 0 auto auto 0; border-radius: 12px; background: var(--pale); pointer-events: none; opacity: 0; }
+.confirmation-dialog[data-modal-phase=opening]::backdrop { animation: dialog-backdrop-in 240ms ease both; }
+.confirmation-dialog[data-modal-phase=closing]::backdrop { animation: dialog-backdrop-out 200ms ease both; }
+@keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes dialog-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .confirmation-dialog::backdrop { animation: none !important; } }

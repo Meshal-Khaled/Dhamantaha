@@ -1,3 +1,4 @@
+import { useWalletNavigation } from './useWalletNavigation.js';
 import { useDeadlineReminders } from './useDeadlineReminders.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
@@ -22,7 +23,10 @@ export default function App() {
   const [picked, setPicked] = useState(null);
   const [busy, setBusy] = useState(false);
   const [phase, setPhase] = useState('');
-  const [page, setPage] = useState('home');
+  const navigation = useWalletNavigation();
+  const { page, visited } = navigation;
+  const [settingsRevision, setSettingsRevision] = useState(0);
+  const editorScroll = useRef(0);
   const [saved, setSaved] = useState([]);
   const [loadingSaved, setLoadingSaved] = useState(true);
   const [savedReady, setSavedReady] = useState(false);
@@ -91,7 +95,7 @@ export default function App() {
   useEffect(() => { connect(); }, [connect]);
 
   const previewUrl = picked?.previewUrl;
-  useEffect(() => () => { if (previewUrl) URL.revokeObjectURL(previewUrl); }, [previewUrl]);
+  useEffect(() => () => { if (previewUrl) navigation.releasePreview(previewUrl); }, [previewUrl, navigation.releasePreview]);
 
   const refreshSaved = useCallback(async () => {
     const generation = ++refreshGeneration.current;
@@ -123,15 +127,21 @@ export default function App() {
   const finish = () => { operation.current = false; setBusy(false); setPhase(''); };
   const clearGuard = () => { formGuard.current = cleanGuard(); setDirty(false); };
 
-  const selectRecord = (record, file, productIndex = 0) => {
+  const selectRecord = (record, file, productIndex = 0, departurePosition) => navigation.go('details', 'push', () => {
     clearGuard();
-    setPage('details');
     setEditing(false);
     setPicked({ record, file, name: record.name, productIndex, previewUrl: record.mime.startsWith('image/') ? URL.createObjectURL(file) : null });
     setOutcome(record.analysis ? { ok: true, result: { body: record.analysis } } : null);
     setPendingAnalysis(null);
     setConfirmDelete(false);
-    window.scrollTo(0, 0);
+  }, departurePosition);
+
+  const changeEditing = (next, change = () => {}) => {
+    if (next) editorScroll.current = window.scrollY;
+    navigation.animate(() => { setEditing(next); change(); }, next ? 'push' : 'pop', () => {
+      if (next) document.querySelector('#main-content .editor-card')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+      else window.scrollTo({ top: editorScroll.current, behavior: 'instant' });
+    });
   };
 
   useEffect(() => {
@@ -141,12 +151,13 @@ export default function App() {
   }, [page, picked?.record.id, picked?.productIndex]);
 
   const choose = async (file, name) => {
+    const departurePosition = { x: window.scrollX, y: window.scrollY };
     if (!begin('saving')) return;
     setOutcome(null);
     try {
       const { duplicate, ...record } = await receiptWallet.save(file, name);
       // A file that is already in the wallet opens its existing receipt instead of saving a copy.
-      selectRecord(record, new File([file], record.name, { type: record.mime }));
+      selectRecord(record, new File([file], record.name, { type: record.mime }), 0, departurePosition);
       setToast(duplicate ? 'receipt_exists' : 'receipt_saved');
       await refreshSaved();
     } catch (error) { setStorageError(error.message); }
@@ -172,7 +183,7 @@ export default function App() {
     const current = pickedRef.current;
     if (!current || !begin('analyzing')) return;
     setConfirmAnalyze(false);
-    setEditing(false);
+    if (editing) changeEditing(false);
     clearGuard();
     setOutcome(null);
     note('info', 'POST /receipts/analyze');
@@ -209,10 +220,11 @@ export default function App() {
   };
 
   const openReceipt = (id, productIndex = 0) => requestAction(async () => {
+    const departurePosition = { x: window.scrollX, y: window.scrollY };
     if (!begin('opening')) return;
     try {
       const { record, file } = await receiptWallet.get(id);
-      selectRecord(record, file, productIndex);
+      selectRecord(record, file, productIndex, departurePosition);
       reportUsage('receipt_refetch', settings);
     } catch (error) { setStorageError(error.message); }
     finally { finish(); }
@@ -249,16 +261,15 @@ export default function App() {
     setPendingCoverage(null);
     setStorageError('');
   };
-  const navigate = (target) => {
+  const navigate = (target, kind = 'tab') => {
     if (target === page) return;
-    requestAction(() => { reset(); setPage(target); window.scrollTo(0, 0); });
+    requestAction(() => navigation.go(target, kind, reset));
   };
   const deleteReceipt = async () => {
     if (!begin('deleting')) return;
     try {
       await receiptWallet.delete(pickedRef.current.record.id);
-      reset();
-      setPage('saved');
+      navigation.go('saved', 'pop', reset);
       setToast('receipt_deleted');
       await refreshSaved();
     } catch (error) { setStorageError(error.message); }
@@ -278,10 +289,11 @@ export default function App() {
       let body = pickedRef.current.record.analysis;
       for (const { values, index } of changes) body = editAnalysis(body, values, index);
       const record = await receiptWallet.saveAnalysis(pickedRef.current.record.id, body);
-      setPicked((current) => ({ ...current, record }));
-      setOutcome({ ok: true, result: { body } });
-      setEditing(false);
-      clearGuard();
+      changeEditing(false, () => {
+        setPicked((current) => ({ ...current, record }));
+        setOutcome({ ok: true, result: { body } });
+        clearGuard();
+      });
       setToast('changes_saved');
       await refreshSaved();
       return true;
@@ -346,28 +358,32 @@ export default function App() {
       const success = pendingAnalysis ? await retrySave() : pendingCoverage ? await retryCoverage() : await formGuard.current.save();
       if (!success) return;
     }
+    if (!save && page === 'settings') setSettingsRevision(value => value + 1);
     queuedAction.current = null;
     setLeaveDialog(null);
     clearGuard();
     setPendingCoverage(null);
     action?.();
   };
-  const cancelEditing = () => requestAction(() => { clearGuard(); setEditing(false); });
+  const cancelEditing = () => requestAction(() => changeEditing(false, clearGuard));
   const requestAnalyze = () => requestAction(() => {
     if (pickedRef.current?.record.analysis) setConfirmAnalyze(true);
     else send();
   });
-  const requestDelete = () => requestAction(() => { setEditing(false); clearGuard(); setConfirmDelete(true); });
+  const requestDelete = () => requestAction(() => {
+    const confirm = () => { clearGuard(); setConfirmDelete(true); };
+    if (editing) changeEditing(false, confirm); else confirm();
+  });
   const handleBack = () => {
     if (busy) return;
     if (leaveDialog) { stay(); return; }
     if (confirmAnalyze) { setConfirmAnalyze(false); return; }
     if (confirmDelete) { setConfirmDelete(false); return; }
     if (editing) { cancelEditing(); return; }
-    if (page === 'details') navigate('saved');
-    else if (page !== 'home') navigate('home');
+    if (page === 'details') navigate('saved', 'pop');
+    else if (page !== 'home') navigate('home', 'pop');
   };
   useNativeChrome({ theme: appearance.theme, onBack: handleBack, canGoBack: page !== 'home' || busy || !!leaveDialog || confirmAnalyze || confirmDelete });
 
-  return <WalletLayout wallet={{ reminders, appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, pendingCoverage, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, setEditing, connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave, saveItemAsset, takeItemPhoto, explainItem, retryCoverage, openItemAsset }} />;
+  return <WalletLayout wallet={{ visited, settingsRevision, reminders, appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, pendingCoverage, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, openEditor: () => changeEditing(true), connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave, saveItemAsset, takeItemPhoto, explainItem, retryCoverage, openItemAsset }} />;
 }

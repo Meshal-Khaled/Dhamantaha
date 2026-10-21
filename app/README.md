@@ -81,3 +81,33 @@ In the installed Android app, **Settings → Notifications** enables private loc
 - Integrates `@capacitor/local-notifications` 8.3.1. Use `npm ci`, `npm run build`, `npx cap sync android` before building the APK (the existing Android build/install scripts already perform build/sync). Install via `adb install -r` to preserve the wallet.
 
 Device acceptance: on an authorized Android phone, verify grant/deny/revoke permission, change lead time, edit/delete a deadline, disable/re-enable, reboot, time-zone changes, app-lock coexistence and actual notification delivery. These require a device; JavaScript scheduling tests and browser previews do not prove OS delivery.
+
+
+## Navigation architecture and motion checks
+
+This is React/Vite running in Capacitor's Android WebView, with six local page states rather than Expo Router or React Navigation. `useWalletNavigation.js` owns real page commits, including the existing Android Back callback, receipt imports and deletion. `navigation-motion.js` coordinates the incoming main element with a temporary inert, accessibility-hidden snapshot of the outgoing viewport. The previous keyed main element remounted tabs and animated only incoming content; it could not provide a coordinated departure or reverse Back animation.
+
+- Screen/detail/editor entry slides in over 280 ms with subtle opacity; Back/save/cancel reverses it. Arabic mirrors horizontal direction.
+- All five bottom tabs fade/move 12 px over 200 ms, with one moving selected-tab indicator. Visited tabs retain their search, Show More and other local state through React Activity; discarded Settings drafts are explicitly reset. Return scrolling records the position before asynchronous receipt loading changes layout.
+- All three confirmation dialogs slide up over 240 ms and remain mounted for their 200 ms reverse close. Existing warranty/refund evidence, original receipt and nested Settings disclosures expand/collapse over 200 ms. Notifications remains its existing Settings section, not a new route.
+- Reduced-motion changes settle active animations immediately. Rapid navigation interrupts the old visual transition without queuing navigation. Missing animation support falls back to usable immediate navigation. Temporary snapshots do not retain password values; original-file preview URLs stay valid until departing visuals finish.
+
+From `app/`, run:
+
+```bash
+npm ci
+npm test
+npm run build
+npx playwright install chromium
+npm run test:navigation
+```
+
+The navigation browser suite drives the actual app with synthetic receipts and blocked external requests. It checks all tab destinations, push/pop keyframes, selected-tab motion, modal opening/closing, editor save/cancel, unsaved guards, import/delete, scroll/search/Show More retention, rapid navigation and reduced-motion/unsupported-animation fallbacks. The presentation matrix covers Arabic/English, light/dark and normal/large text. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/path/to/chromium` optionally selects an existing browser.
+
+To check on an authorized Android phone with USB debugging, JDK 21 and `ANDROID_HOME` configured:
+
+```bash
+npm run android:install
+```
+
+This rebuilds/syncs/installs using `adb install -r`. Open Home → Receipts → a receipt; use the header Back and Android Back and compare reversed movement. Switch all five tabs, search/show more and return, edit/cancel/save a receipt, open/cancel a delete or reanalysis confirmation, and expand Settings → Analysis connection → Request diagnostics and receipt warranty/refund terms. Repeat in Arabic, dark mode, large text, and with device animations/reduced motion disabled. A successful APK build and Chromium tests do not prove playback or Back behavior on a physical Android WebView.
