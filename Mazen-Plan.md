@@ -15,7 +15,7 @@ Make Dhamantaha easy, trustworthy, and pleasant to use as an Android receipt wal
 
 ## 2. Start from the actual project, not an old mock-up
 
-Read `AGENTS.md`, `UPDATES.md`, `Meshal-Plan.md`, `Resource.md`, the root `README.md`, and the two client READMEs before work. The updated frontend baseline is the `Frontend-UI` branch; `main` can have an older folder structure. Check the remote branch, local changes, and unpushed work before changing files.
+Read `AGENTS.md`, `UPDATES.md`, `Meshal-Plan.md`, `Resource.md`, the root `README.md`, and the two client READMEs before work. The approved baseline is `main`. Follow the current main-only rules in `AGENTS.md`; `Frontend-UI` is historical. Check the remote branch, local changes, and unpushed work before changing files.
 
 | Area | Working source to inspect | Purpose |
 | --- | --- | --- |
@@ -205,7 +205,7 @@ These are **review tasks and proposed improvements**, not confirmed bugs. For ev
 
 ## 10. Build, testing and safe rollout
 
-**Working agreement:** develop frontend code on a dedicated feature branch based on the newest approved `Frontend-UI` state, not directly on `main`. Commit in small feature-sized changes, request review before merge, and append a real Asia/Riyadh timestamped entry to `UPDATES.md` for each update, following `AGENTS.md`. The shared-doc automation may publish plans and log entries to `main`; application code should reach `main` only through review/merge.
+**Working agreement:** work, commit and push only on `main` unless explicitly requested otherwise. Pull current `main`, preserve teammate work, commit focused changes, and append a real Asia/Riyadh timestamped entry to `UPDATES.md`. Do not create feature branches; current `AGENTS.md` takes precedence over historical branch advice.
 
 ### Android app — from `app/`
 
@@ -264,7 +264,7 @@ npm run dev
 
 ## 12. Open questions to resolve with Meshal before implementation
 
-1. Is the current remote `Frontend-UI` branch the approved baseline, or are newer app/website commits still only on Meshal's machine?
+1. Resolved: `main` is the approved baseline and only working branch. Check remote updates and preserve local teammate work before editing.
 2. Which visual changes are mandatory for the presentation, and which can wait until after core flow testing?
 3. Should Android receive the same filters and sorting as the website, or keep the simpler search-first UI?
 4. What reminder offsets and notification experience should be used, and is native notification scheduling allowed in the first release?
@@ -275,7 +275,7 @@ npm run dev
 
 ## 13. Suggested first Codex task
 
-> Read `AGENTS.md`, `UPDATES.md`, `Mazen-Plan.md`, `Meshal-Plan.md`, `Resource.md`, the root README, `app/README.md` and `website/README.md`. Inspect the current `Frontend-UI` code and do a **read-only frontend audit first**. Produce a table of each Android and website screen, what already works, concrete UI issues with evidence, affected source files, priority and test plan. Identify any mismatch between GitHub and the update log. After the audit, implement one agreed P0 improvement on a new feature branch, without touching `main`, deleting saved receipts, or deploying to The Ring. Preserve bilingual and RTL support, run relevant tests, and append a truthful log entry following `AGENTS.md`.
+> Read `AGENTS.md`, `UPDATES.md`, `Mazen-Plan.md`, `Meshal-Plan.md`, `Resource.md`, the root README, `app/README.md` and `website/README.md`. Inspect the current `main` code and do a **read-only frontend audit first**. Produce a table of each Android and website screen, what already works, concrete UI issues with evidence, affected source files, priority and test plan. Identify any mismatch between GitHub and the update log. After the audit, implement one agreed P0 improvement directly on `main`, preserving teammate work and saved receipts, without deploying to The Ring. Preserve bilingual and RTL support, run relevant tests, and append a truthful log entry following `AGENTS.md`.
 
 ## References
 
@@ -284,3 +284,72 @@ npm run dev
 - `Meshal-Plan.md` — backend assumptions and privacy/API boundaries.
 - `Resource.md` — agreed development resources.
 - `app/README.md`, `website/README.md`, `infrastructure/API.md` — implementation guidance and current API contract.
+
+## 14. Focused Android UI sprint
+
+This sprint narrows execution of the broader roadmap above; it does not replace useful future work. The existing root `Mazen-Plan.md` is the plan source, as clarified by Mazen.
+
+### Sprint 1 — Tasks 1 and 2
+
+1. **Home:** provide a real first-use state with Add first receipt and an explanation of local saving and optional analysis. Hide empty dashboard metrics and deadline headings. For saved receipts without upcoming known deadlines, explain that unanalyzed receipts and unknown terms may still need review.
+2. **Receipts:** distinguish Not analyzed from analyzed-but-unknown warranty dates. Show matching versus total receipt counts and the count actually displayed. Preserve search, existing filters/sort, Show More and opening receipts.
+
+Retain Arabic/English, RTL/LTR, light/dark and normal/large text. Scope excludes website, backend, QR, Ring deployment, native storage schema, saved data, credentials and warranty math. No fake sign-out or notification switch. Validate with `npm ci`, `npm test`, `npm run build` from `app/` and append actual results to `UPDATES.md`.
+
+### Next steps — Tasks 3–4 (deferred)
+
+Continue the existing Android roadmap sections C (receipt details/product cards) and D (add receipt/analysis flow) in a subsequent task, after confirming their exact acceptance scope. Neither is implemented in this sprint. Native device verification remains a separate check; do not clear saved data.
+
+## 15. Analyst and refund/exchange clarity — implemented
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Added a fifth bottom navigation destination: **Analyst / الإنفاق**, with a **تحليل الإنفاق** screen. It reads saved local receipt metadata only; it sends no financial data to a server.
+- Spending totals cover rolling 7, 30 and 365 days, inclusive of today, based on purchase dates rather than import/save dates. Each receipt is counted once per applicable period. Currency totals stay separate; no conversion or guessed currency. These are gross recorded purchases, not net spending after refunds.
+- Receipts without a valid purchase date, nonnegative finite total or known currency, and future-dated receipts, are excluded with a visible count. Unanalyzed receipts are excluded. Empty periods say no recorded spending instead of claiming complete financial coverage. Editing/deleting receipts recomputes totals from the wallet.
+- Receipt details now explain that warranty, return/refund (استرجاع) and exchange/replacement (استبدال) are separate terms. Refund and exchange deadlines are displayed separately using existing recorded policy fields and calculations; absent deadlines remain unknown. A warranty is not automatically labeled as permitting a refund or replacement. Original printed terms remain visible.
+- No backend, website, QR, production deployment, native schema, saved-data migration, credentials or warranty-math changes. No fake account/notification controls. The downloadable demo uses an isolated sample-only database.
+- Validation: app npm ci succeeded, all 50 tests passed (no failures/skips), production build succeeded. Eight Chromium language/theme/text-size combinations at 320px passed empty/populated Analyst, correct totals, five-tab navigation, separate refund/exchange dates, and no horizontal overflow/runtime errors. Native Android/device installation remains untested.
+
+## 16. Screen motion, expired status and Android notification settings
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Page navigation now uses a short fade/slide and subtle tab-state transitions. Respect reduced-motion preferences; keep existing navigation and unsaved-edit guards.
+- Expired warranty cards and product details show **Expired / منتهي الصلاحية** with a **shield-X**, with no progress bar. Active warranties retain shield-check and remaining-time bars. Unknown terms remain unknown; calculations are unchanged.
+- Implement Android **Settings → Notifications** with the official Capacitor Local Notifications plugin. Defaults off; request notification permission only after explicit enabling/retry. Choose one or seven days before known warranty/refund/exchange deadlines, around 09:00 phone-local time. Use inexact alarms without requesting special exact-alarm access.
+- Schedule one generic, private digest per day, capped to the nearest 64 reminder days. No merchant, receipt name, ID, amount or original content in notifications. Recompute after wallet edits/deletions, language/lead changes, app resume and local day/time-zone changes observed while running. Cancel obsolete pending wallet IDs without canceling unrelated IDs; serialize replacements and expose failures with Retry.
+- Browser preview explains Android-only availability and does not offer a fake working switch. Android battery limits, channel settings, private-space locks and force-stop can delay/prevent delivery; Home stays available. Open the app after time/time-zone changes and periodically to refresh later reminders. Native OS permission/delivery/reboot/app-lock behavior requires an authorized device check.
+- This section supersedes older roadmap statements that phone reminders are not yet implemented. No new telemetry, server traffic, schema migration, website/backend change or credential changes.
+
+Validation: `npm ci` succeeded; all **59 app tests passed** with no failures/skips; production web build and Capacitor Android sync passed. Eight language/theme/text-size browser combinations at 320px passed transitions/reduced motion, expired shield-X with no bar in cards/details, and browser notification availability messaging. Native-settings component interactions passed with a simulated adapter; Analyst regression matrix also passed. The Android clean debug build succeeded after provisioning the SDK/JDK and resolving local cache/trust setup. APK signature, bundled latest UI assets and merged permissions were verified (no exact-alarm permission). Actual permission prompts, delivery, reboot restoration and app-lock behavior remain untested on a phone.
+
+## 17. Simple navigation polish and restrained emoji accents
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Refined navigation to a 240 ms fade/slide, mirrored in Arabic RTL. Selected tabs lift subtly and primary/secondary/back controls show restrained press feedback. Reduced-motion preferences disable these movements.
+- Use at most one small decorative emoji per screen: receipt on first-use Home/Add, a greeting on populated Home, and a chart on Analyst. Keep text labels, vector navigation/status icons and the existing layout. Hide decorative emoji from screen-reader names.
+- Clip horizontal transition overflow without adding new UI controls or changing wallet, notification, storage or analysis behavior.
+- Validation: all 59 existing app tests and the production web build passed. Eight Arabic/English × light/dark × normal/large Chromium combinations at 320px passed all five navigation destinations, animation timing/direction, emoji restraint, reduced motion and no horizontal overflow/runtime errors. Refreshed the standalone sample-data HTML. Native APK/device checks were not repeated for this presentation-only change.
+
+## 18. Visible navigation replay and Receipts emoji
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Replay navigation via the browser/WebView animation API on every committed page or selected-receipt change: 360 ms fade with a 32 px slide, mirrored for RTL. Cancel outgoing animations and honor reduced motion, including preference changes during playback. No navigation delays, duplicate screens or changes to unsaved-edit guards.
+- Add a single decorative 🧾 to the Receipts heading, retaining its readable accessible text label.
+- Browser verification measures actual transform/opacity changes, rather than only checking animation configuration. Eight language/theme/text-size combinations at 320px passed all destinations, repeated navigation, RTL direction, Receipts emoji/accessibility, reduced motion and no overflow/runtime errors. Existing 59 app tests and production build passed. Publish a newly named standalone mock-data preview so earlier downloaded copies are distinguishable. Native APK/device tests were not repeated for this UI-only patch.
+
+
+## 19. Coordinated navigation through the actual app architecture
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Supersedes sections 17–18's entry-only animation approach. This app is React/Vite inside Capacitor Android, not Expo Router/React Navigation. The keyed conditional main element previously removed outgoing screens immediately, remounted tabs and reused the forward direction on Back. Replace that with one navigation coordinator wired to actual page commits, receipt opening/import/deletion, inline editor entry/save/cancel and the existing Android Back callback.
+- Use eased 280 ms forward slides and matching reverse Back transitions, with subtle opacity and Arabic RTL mirroring. Retain an inert, accessibility-hidden outgoing viewport only until playback finishes; remove duplicate IDs and password values. Keep original preview URLs alive until departing visuals finish.
+- All five tabs use 200 ms fades with a subtle 12 px movement and one animated selected-tab pill. Cache visited tabs with React Activity, preserving search, Show More and local state; explicitly reset discarded Settings drafts. Restore return scroll from the user's tap before asynchronous loading messages can shift the layout.
+- Keep all three confirmation dialogs mounted through opening (240 ms upward slide) and closing (200 ms reverse). Animate existing nested Settings, warranty/refund evidence and original-receipt disclosures consistently. Notifications and warranty/refund information remain their existing sections, not invented routes.
+- Reduced-motion preference changes finish active visuals. Rapid actions cancel stale visuals without queuing navigation. Missing animation support remains a functional immediate fallback. Preserve unsaved changes guards, existing routes, receipt files, native storage and warranty calculations; no production/network/data migration or backend/website changes.
+- Add repeatable coordinator unit tests and Playwright tests against the actual app, with synthetic local receipts and external traffic blocked. Playwright is a development-only dependency; no animation/runtime library added.
+- Validation: npm ci succeeded using a writable npm cache (the default home cache is read-only); all 66 unit tests passed, all 14 browser scenarios passed, production web build and Capacitor sync passed. Browser coverage includes all tabs, coordinated push/pop, indicator, modal opening/closing, disclosure reversal, editor/save/cancel guards, import/delete, scroll/search/Show More preservation, rapid navigation and reduced-motion/unsupported-animation fallbacks across Arabic/English, light/dark and normal/large text. Android :app:assembleDebug succeeded; APK signature verified and all five bundled web assets exactly matched the production build. Physical Android playback, native Back and OS dialogs require a phone check; no phone testing claimed. Reproduction and device steps are in app/README.md.

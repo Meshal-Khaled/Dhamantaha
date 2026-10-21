@@ -327,3 +327,52 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Corrected the QR logs dashboard's historical waiting label to Retry requested, renamed the table QR request activity and its outcome column Attempt outcome, and explained that each HTTP attempt keeps its own row when a client later retries. Preserved all original failure and retry records without inferring final outcomes from a participant name. Deployed the two static dashboard files through a rebuilt control-panel image; verified the public HTML/JavaScript and healthy app/QR containers. All 14 dashboard tests passed in the Linux release image; the local sandbox blocked loopback connections and a temporary-file rename, so its test run was not counted as a pass. No provider calls or new load tests were made. The earlier paced result remains 24/25 first pass plus one verified targeted connection-failure resubmission, with 25 eventual successes; the older unpaced quota failures remain visible.
 
 Tool: Codex — Developer: Meshal Khaled
+
+
+## 2026-10-21 23:39 (Asia/Riyadh)
+
+**Update:** Improved Android React wallet UI: Home empty state and deadline hierarchy, receipt status filters and counts, product-code search, newest/deadline/store sorting with incremental display, purchase-summary and product quantity/total sections, readable long names, consistent teal surfaces and controls, and a four-step import guide separating local saving from optional AI analysis. Added failure reassurance while retaining existing storage/API/native behavior. Installed app dependencies with npm ci; all 47 tests and production build passed. Chromium smoke checks passed for empty/populated synthetic wallets, 35-receipt pagination, search, navigation, failed-analysis original preservation, and English/Arabic light/dark large text at 320px/390px without horizontal overflow or runtime errors. Saved reusable cloud install/startup configuration. Native Android device and live AI analysis were not tested. Website and infrastructure unchanged.
+
+Tool: Codex — Developer: repository owner (requested UI improvements)
+
+
+## 2026-10-22 00:24 (Asia/Riyadh)
+
+**Update:** Completed focused Android UI Sprint 1 Tasks 1–2: first-use Home now leads with Add first receipt and local-save/optional-analysis guidance instead of zero stats; saved receipts without known upcoming deadlines explain that unknown terms and unanalyzed receipts still need review. Receipt list reports matching/total/displayed counts, preserves search, filters, sorting and Show More, and distinguishes Not analyzed from Warranty unknown without an unknown-date progress bar. Updated the existing root Mazen-Plan.md while retaining its broader roadmap and replacing obsolete feature-branch advice with AGENTS.md main-only rules. The user clarified that the existing plan replaces the referenced attachment. Tasks 3–4 remain deferred; proposed follow-up areas are receipt details and add/analysis, pending exact scope. From app/: npm ci succeeded, all 47 tests passed (zero failures/skips), and npm run build succeeded. Chromium checks passed all 8 Arabic/English × light/dark × normal/large combinations at 320px: first-use CTA, saved/no-known-deadline state, 35 synthetic receipts, Show More, search, unknown status, no horizontal overflow or page errors. Browser checks used a fresh isolated profile and blocked external requests; no real receipt data or production provider calls. Native device testing was not run. Preserved the existing Android UI commit and all prior log entries; website/backend/QR/deployment/storage/schema/credentials/warranty math unchanged.
+
+Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 00:46 (Asia/Riyadh)
+
+**Update:** Added Android Analyst bottom navigation and local spending totals for the past 7/30/365 days, using purchase dates, separate currency totals and explicit excluded-receipt counts. Totals recompute from saved receipts and do not infer missing amounts, dates, currency or refunds. Receipt details now distinguish warranty from refund/return (استرجاع) and exchange/replacement (استبدال), display each known deadline separately, retain original policy text and label unknown terms honestly. Updated Mazen-Plan.md with the implemented scope and developer/tool attribution. Refreshed the downloadable sample-only HTML preview outside the repository. From app/: npm ci passed, all 50 tests passed with no failures/skips, and npm run build passed. Eight Chromium Arabic/English × light/dark × normal/large combinations at 320px verified empty/populated Analyst, correct totals, five-tab navigation, separate refund/exchange dates and no overflow/runtime errors. Native device installation was not tested. Website, backend, QR, Ring deployment, native storage schema, real saved data, credentials and warranty calculations were not changed.
+
+Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 01:08 (Asia/Riyadh)
+
+**Update:** Added short screen-switch fade/slide and tab-state transitions with reduced-motion support. Expired warranties in receipt cards and product details now show Expired / منتهي الصلاحية with a shield-X icon and no progress bar; active bars and warranty calculations remain intact. Added real opt-in Android Notifications settings via Capacitor Local Notifications 8.3.1: one/seven-day lead times, approximately 09:00 local time, generic private daily reminders for known warranty/refund/exchange dates, no special exact-alarm access, a 64-day schedule cap, serialized cancellation/replacement on wallet/preferences/language/resume changes, blocked permission/channel handling and retry. Failed initial wallet reads preserve existing alarms. Android 7 channel-unavailable fallback is covered. Browser preview explains Android-only reminders without a pretend switch. Updated Mazen-Plan.md and app README; ignored generated Kotlin caches. Validation: npm ci succeeded, all 59 app tests passed with no failures/skips, Vite production build and cap sync android passed. Chromium checks passed 8 Arabic/English × light/dark × normal/large combinations at 320px, including no overflow/runtime errors, reduced motion, expired icon/no bar, notification availability; native-settings interactions were tested with a simulated adapter and the prior Analyst browser matrix passed. Gradle clean debug APK build succeeded after SDK/JDK/trust/cache setup. APK v2 signature verified, all bundled web assets matched the latest build, and merged permissions include notifications/reboot but exclude exact alarms. Real Android permission/delivery/reboot/app-lock testing was not performed; no phone data was touched. Refreshed the standalone sample-data HTML outside Git. Website, backend, QR, Ring deployment, native receipt schema, saved data, credentials and warranty math unchanged.
+
+Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 01:12 (Asia/Riyadh)
+
+**Update:** Polished Android navigation with 240 ms fade/slide transitions mirrored for RTL, gentle selected-tab feedback and subtle button press states. Added restrained decorative emoji (maximum one per screen) to first-use Home/Add, populated Home greeting and Analyst; preserved plain text labels and existing vector icons. Reduced-motion settings disable the new movements, and horizontal transition clipping prevents page overflow. Updated Mazen-Plan.md and the downloadable sample-data preview. All 59 app tests and Vite production build passed. Chromium verified all five destinations across 8 language/theme/text-size combinations at 320px, including timing/direction, emoji restraint, reduced motion and no overflow/runtime errors. Native APK/device checks were not repeated for this UI-only patch. Wallet calculations, reminders, storage, website and backend behavior unchanged.
+
+Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 01:16 (Asia/Riyadh)
+
+**Update:** Made Android navigation visibly replay a 360 ms fade/32 px slide using the Web Animations API after each committed page/receipt change, with RTL reversal, cleanup of previous animations and reduced-motion support. Added the requested decorative receipt emoji to the Receipts heading without changing its screen-reader name. Browser checks measured actual start/mid/end movement and opacity across repeated navigation in all five destinations for 8 language/theme/text-size combinations at 320px; reduced motion, accessible heading, no overflow and no runtime errors passed. Existing 59 app tests and production build passed. Updated Mazen-Plan.md and generated a newly named standalone mock-data preview outside Git. Native APK/device checks were not repeated; wallet data, notifications, calculations, website and backend unchanged.
+
+Tool: Codex — Developer: Mazen Al-Malki
+
+
+## 2026-10-22 01:41 (Asia/Riyadh)
+
+**Update:** Implemented coordinated navigation in the real React/Vite/Capacitor app, replacing keyed main remounts and incoming-only effects. Centralized actual page/editor commits and existing Android Back handling: eased 280 ms forward/reverse slides with opacity and RTL mirroring; all five tabs use 200 ms fade/movement plus one animated indicator, preserving visited-tab search/Show More and returning scroll. Preserve pre-loading scroll position and clear explicitly discarded Settings drafts. All three confirmation dialogs now animate upward and remain mounted for reverse closing; existing Settings/warranty/refund/original disclosures animate both ways. Reduced motion, rapid interruptions, missing animation support, inert/password-sanitized outgoing snapshots and delayed preview URL cleanup are handled. Added durable unit/UI regression tests, Playwright development tooling, and app README/device steps; updated Mazen-Plan.md. npm ci succeeded with a writable npm cache after the default read-only home cache failed. All 66 unit tests and 14 real-app browser scenarios passed across Arabic/English, light/dark and normal/large text. Production build, Capacitor Android sync and :app:assembleDebug passed; APK signature and exact inclusion of all five current web assets verified. Physical Android playback/native Back remain unverified; no phone data was touched. No website, backend, QR, deployment, native schema, credential, saved-data or warranty-math changes.
+
+Tool: Codex — Developer: Mazen Al-Malki
