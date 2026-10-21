@@ -28,6 +28,7 @@ describe('normalizeProviderResponse', () => {
       expirationBasis: 'calculated',
       status: 'active',
       provider: null,
+      coverage: null,
     });
     assert.deepEqual(result.review, { missingFields: [], uncertainties: [] });
   });

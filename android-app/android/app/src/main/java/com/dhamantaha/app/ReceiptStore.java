@@ -19,9 +19,10 @@ import org.json.JSONObject;
 /** SQLite metadata + original files, both under Android's private no-backup directory. */
 final class ReceiptStore extends SQLiteOpenHelper {
     static final int MAX_BYTES = 20 * 1024 * 1024;
-    // Version 2 adds sha256, the original's content hash, so the same file is not saved twice.
-    static final int VERSION = 2;
+    // v2 adds original hashes; v3 adds item photos and warranty terms without changing receipts.
+    static final int VERSION = 3;
     private final File originals;
+    private final File attachments;
 
     ReceiptStore(Context context) {
         this(context, new File(context.getNoBackupFilesDir(), "receipt-wallet"));
@@ -32,12 +33,19 @@ final class ReceiptStore extends SQLiteOpenHelper {
         super(context, new File(directory, "receipts.db").getAbsolutePath(), null, VERSION);
         originals = new File(directory, "originals");
         if (!originals.isDirectory() && !originals.mkdirs()) throw new IllegalStateException("Cannot open receipt storage.");
+        attachments = new File(directory, "attachments");
+        if (!attachments.isDirectory() && !attachments.mkdirs()) throw new IllegalStateException("Cannot open attachment storage.");
     }
 
     @Override public void onCreate(SQLiteDatabase db) {
         db.execSQL("CREATE TABLE receipts (id TEXT PRIMARY KEY, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, analysis TEXT, sha256 TEXT)");
         db.execSQL("CREATE INDEX receipts_created ON receipts(created_at DESC, id)");
         db.execSQL("CREATE INDEX receipts_sha256 ON receipts(sha256)");
+        createAssets(db);
+    }
+
+    private void createAssets(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE assets (id TEXT PRIMARY KEY, receipt_id TEXT NOT NULL, item_index INTEGER NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, mime TEXT NOT NULL, size INTEGER NOT NULL, explanation TEXT, UNIQUE(receipt_id, item_index, kind))");
     }
 
     // Runs inside SQLite's upgrade transaction: a failure leaves the database at its old version.
@@ -57,6 +65,7 @@ final class ReceiptStore extends SQLiteOpenHelper {
                 throw new IllegalStateException("Cannot upgrade receipt storage.", error);
             }
         }
+        if (oldVersion < 3) createAssets(db);
     }
 
     /** Saves a new original, or returns the receipt already holding these exact bytes with "duplicate": true. */
@@ -111,8 +120,77 @@ final class ReceiptStore extends SQLiteOpenHelper {
         original(id); // Validate the ID before it is used as a path.
         try (Cursor cursor = getReadableDatabase().query("receipts", null, "id = ?", new String[]{id}, null, null, null)) {
             if (!cursor.moveToFirst()) throw new IllegalArgumentException("This receipt no longer exists.");
-            return record(cursor);
+            return record(cursor).put("assets", assets(id));
         }
+    }
+
+    JSONArray assets(String receiptId) throws JSONException {
+        JSONArray rows = new JSONArray();
+        try (Cursor cursor = getReadableDatabase().query("assets", null, "receipt_id = ?", new String[]{receiptId}, null, null, "item_index, kind")) {
+            while (cursor.moveToNext()) {
+                String explanation = cursor.getString(cursor.getColumnIndexOrThrow("explanation"));
+                rows.put(new JSONObject().put("id", cursor.getString(cursor.getColumnIndexOrThrow("id")))
+                    .put("index", cursor.getInt(cursor.getColumnIndexOrThrow("item_index")))
+                    .put("kind", cursor.getString(cursor.getColumnIndexOrThrow("kind")))
+                    .put("name", cursor.getString(cursor.getColumnIndexOrThrow("name")))
+                    .put("mime", cursor.getString(cursor.getColumnIndexOrThrow("mime")))
+                    .put("size", cursor.getLong(cursor.getColumnIndexOrThrow("size")))
+                    .put("explanation", explanation == null ? JSONObject.NULL : new JSONObject(explanation)));
+            }
+        }
+        return rows;
+    }
+
+    private void validateItem(String receiptId, int index, String kind) throws JSONException {
+        JSONObject analysis = get(receiptId).optJSONObject("analysis");
+        if (analysis == null || index < 0 || index >= analysis.getJSONArray("items").length()) throw new IllegalArgumentException("This item no longer exists.");
+        if (!"photo".equals(kind) && !"terms".equals(kind)) throw new IllegalArgumentException("Invalid attachment type.");
+    }
+
+    JSONObject saveAsset(String receiptId, int index, String kind, String name, String mime, byte[] bytes) throws Exception {
+        validateItem(receiptId, index, kind);
+        if (bytes.length == 0 || bytes.length > MAX_BYTES) throw new IllegalArgumentException("Choose a nonempty file up to 20 MB.");
+        if (!mime.matches("image/(jpeg|png|webp)") && !(kind.equals("terms") && mime.equals("application/pdf"))) throw new IllegalArgumentException("Choose a JPG, PNG, WebP photo or a PDF of the terms.");
+        String previous = null;
+        JSONArray currentAssets = assets(receiptId);
+        for (int i = 0; i < currentAssets.length(); i++) {
+            JSONObject row = currentAssets.getJSONObject(i);
+            if (row.getInt("index") == index && row.getString("kind").equals(kind)) previous = row.getString("id");
+        }
+        String id = UUID.randomUUID().toString();
+        File pending = new File(attachments, id + ".tmp");
+        File file = assetFile(id);
+        boolean committed = false;
+        try {
+            try (FileOutputStream output = new FileOutputStream(pending)) { output.write(bytes); output.getFD().sync(); }
+            if (!pending.renameTo(file)) throw new IOException("Cannot save attachment.");
+            ContentValues values = new ContentValues();
+            values.put("id", id); values.put("receipt_id", receiptId); values.put("item_index", index); values.put("kind", kind);
+            values.put("name", name == null ? "Attachment" : name); values.put("mime", mime); values.put("size", bytes.length);
+            if (getWritableDatabase().insertWithOnConflict("assets", null, values, SQLiteDatabase.CONFLICT_REPLACE) == -1) throw new IOException("Cannot save attachment.");
+            committed = true;
+            if (previous != null) assetFile(previous).delete();
+            return get(receiptId);
+        } finally { pending.delete(); if (!committed) file.delete(); }
+    }
+
+    JSONObject asset(String receiptId, String assetId) throws JSONException {
+        get(receiptId);
+        JSONArray rows = assets(receiptId);
+        for (int i = 0; i < rows.length(); i++) if (rows.getJSONObject(i).getString("id").equals(assetId)) return rows.getJSONObject(i);
+        throw new IllegalArgumentException("This attachment no longer exists.");
+    }
+
+    File assetFile(String id) {
+        original(id); // Same UUID path validation as originals.
+        return new File(attachments, id);
+    }
+
+    JSONObject saveExplanation(String receiptId, String assetId, JSONObject explanation) throws JSONException {
+        if (!asset(receiptId, assetId).getString("kind").equals("terms")) throw new IllegalArgumentException("Choose warranty terms first.");
+        ContentValues values = new ContentValues(); values.put("explanation", explanation.toString());
+        getWritableDatabase().update("assets", values, "id = ? AND receipt_id = ?", new String[]{assetId, receiptId});
+        return get(receiptId);
     }
 
     JSONObject updateAnalysis(String id, JSONObject analysis) throws JSONException {
@@ -126,16 +204,24 @@ final class ReceiptStore extends SQLiteOpenHelper {
 
     void delete(String id) throws IOException, JSONException {
         get(id);
+        JSONArray assetRows = assets(id);
         File file = original(id);
         File tombstone = new File(originals, id + ".deleted");
         if (file.exists() && !file.renameTo(tombstone)) throw new IOException("Cannot delete receipt file.");
         try {
-            getWritableDatabase().delete("receipts", "id = ?", new String[]{id});
+            SQLiteDatabase db = getWritableDatabase();
+            db.beginTransaction();
+            try {
+                db.delete("assets", "receipt_id = ?", new String[]{id});
+                db.delete("receipts", "id = ?", new String[]{id});
+                db.setTransactionSuccessful();
+            } finally { db.endTransaction(); }
         } catch (RuntimeException error) {
             tombstone.renameTo(file);
             throw error;
         }
         tombstone.delete();
+        for (int i = 0; i < assetRows.length(); i++) assetFile(assetRows.getJSONObject(i).getString("id")).delete();
     }
 
     File original(String id) {
@@ -147,6 +233,12 @@ final class ReceiptStore extends SQLiteOpenHelper {
 
     // Recover unused files if Android killed the process between the file and SQL writes.
     void cleanOrphans() {
+        File[] extras = attachments.listFiles();
+        if (extras != null) for (File file : extras) {
+            try (Cursor cursor = getReadableDatabase().rawQuery("SELECT 1 FROM assets WHERE id = ?", new String[]{file.getName()})) {
+                if (!cursor.moveToFirst()) file.delete();
+            }
+        }
         File[] files = originals.listFiles();
         if (files == null) return;
         for (File file : files) {

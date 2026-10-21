@@ -6,7 +6,7 @@
 export function createMockProvider({ delayMs = 800 } = {}) {
   return {
     name: 'mock',
-    async analyze({ signal }) {
+    async analyze({ signal, purpose }) {
       await new Promise((resolve, reject) => {
         const timer = setTimeout(resolve, delayMs);
         signal?.addEventListener('abort', () => {
@@ -14,6 +14,7 @@ export function createMockProvider({ delayMs = 800 } = {}) {
           reject(signal.reason);
         });
       });
+      if (purpose === 'coverage') return { readable: true, coverage: { sourceText: 'Mock example: manufacturing defects are covered. Accidental damage is excluded.', covered: [{ summary: 'Mock example: manufacturing defects appear covered.', quote: 'manufacturing defects are covered.', reference: null }], excluded: [{ summary: 'Mock example: accidental damage is excluded.', quote: 'Accidental damage is excluded.', reference: null }], unclear: [] } };
       return {
         readable: true,
         receipt: {

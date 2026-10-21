@@ -157,6 +157,16 @@ Every error has the same shape. `message` is safe to show the user; branch on `c
 
 ## The wallet on the phone
 
+### Item icons and warranty explanations
+
+`items[].icon` is an allowlisted UI hint for Heroicons (Tailwind's icon library): `package`, `laptop`, `phone`, `tablet`, `headphones`, `watch`, `camera`, `tv`, `printer`, `gamepad`, `appliance`, `shirt`, `bag`, `shoes`, `jewelry`, `furniture`, `tool`, or `cable`. Older or unknown values fall back to `package`; an icon is not a new receipt fact.
+
+`items[].warranty.coverage` is null unless supporting warranty conditions exist. When present, it contains `sourceText` and `covered`, `excluded`, and `unclear` arrays. Each point is `{ summary, quote, reference }`, where `quote` must occur in the supplied terms and `reference` is a printed heading/page label or null. A warranty duration by itself does not establish coverage.
+
+`POST /v1/warranty/explain` takes multipart `file` (one terms photo or PDF), optional `product` (up to 150 characters, context only), and `language` (`en` or `ar`). It returns `{ requestId, processingMethod, coverage }` with the same coverage shape. It shares client-key checks, file preparation, rate/concurrency limits, provider budget, timeouts, and in-memory-only processing with receipt analysis. `422 unreadable_terms` means no legible terms were found. Unsupported quotations are discarded. PDF quotations are checked against the extracted text; visual input uses the transcription that the user can compare to the attached original.
+
+Android keeps item photos, terms originals, and saved explanations in private no-backup storage, separate from receipt analysis. Uploading terms to local storage does not analyze them. Only the separate Explain coverage action sends the selected terms document; item photos are not uploaded. Receipt re-analysis aligns uniquely matching item identifiers/descriptions and refuses to overwrite when attachments cannot be safely matched. Clearing app data removes all of these local files.
+
 Proposed local model, to agree with the frontend:
 
 - **Receipt**: a local `id` (UUID), `createdAt`, `updatedAt`, the original file (kept on the phone only), `analysis` (`requestId`, `processingMethod`), the reviewed `receipt` fields, and all `items`.

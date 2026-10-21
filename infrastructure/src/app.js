@@ -41,7 +41,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/monitoring'], (req, res) => res.sendFile('index.html', { root: dashboard }));
   app.use('/admin/api', adminRouter({ config, runtime, monitoring, budget: dailyBudget, debug }));
   app.get('/v1', (req, res) => res.json({ service: 'Dhamantaha receipt API', version: 'v1',
-    endpoints: { health: '/v1/health', analyzeReceipt: '/v1/receipts/analyze' }, dashboard: '/dashboard/api-settings' }));
+    endpoints: { health: '/v1/health', analyzeReceipt: '/v1/receipts/analyze', explainWarranty: '/v1/warranty/explain' }, dashboard: '/dashboard/api-settings' }));
 
   app.get(['/health', '/v1/health'], (req, res) => {
     res.json({

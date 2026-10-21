@@ -1,5 +1,7 @@
 import { AppError } from '../errors.js';
 import { DURATION_UNITS, isValidDate, resolveExpiration, warrantyStatus } from '../wallet/warranty.js';
+import { ITEM_ICONS } from '../contracts/coverage.js';
+import { normalizeCoverage } from './coverage.js';
 
 const MAX_ITEMS = 200;
 const MAX_UNCERTAINTIES = 50;
@@ -137,6 +139,7 @@ function normalizeItem(item, path, context) {
     description,
     displayName: cleanText(source.displayName, 150) ?? description,
     category: cleanText(source.category, 100),
+    icon: ITEM_ICONS.includes(source.icon) ? source.icon : 'package',
     quantity: quantity !== null && quantity > 0 ? quantity : null,
     unitPrice: cleanNumber(source.unitPrice),
     totalPrice: cleanNumber(source.totalPrice),
@@ -155,6 +158,7 @@ function normalizeWarranty(warranty, path, { flag, date, merchantName, purchaseD
     expirationBasis: null,
     status: 'unknown',
     provider: null,
+    coverage: null,
   };
   if (!isObject(warranty) || warranty.statedOnReceipt !== true) return unknown;
 
@@ -185,6 +189,7 @@ function normalizeWarranty(warranty, path, { flag, date, merchantName, purchaseD
     status: warrantyStatus(expirationDate, today),
     // The app shows a provider only when someone other than the seller gives the warranty.
     provider: sameCompany(provider, merchantName, { partial: true }) ? null : provider,
+    coverage: normalizeCoverage(warranty.coverage, sourceText),
   };
 }
 

@@ -222,3 +222,10 @@ Tool: Claude Code — Developer: Meshal Khaled
 
 Tool: Codex — Developer: Meshal Khaled
 
+
+## 2026-10-21 14:09 (Asia/Riyadh)
+
+**Update:** Captured the current phone screen and added the requested receipt-detail features. Expired warranties now say only Expired in cards, item summaries, and timers; ended local returns and printed refund/exchange periods use Return ended, Refund ended, and Exchange ended (with Arabic labels). Added payload-selected Heroicons, a camera shortcut beside each item, chosen product photos, and item thumbnails. Added per-item photo/PDF warranty-terms attachments, original viewing, and a Warranty Coverage Explainer with covered, excluded, and unclear points and expandable supporting quotes. Existing payload coverage displays without another request. Terms are saved locally first and sent only by the separate Explain coverage action; product photos never enter this request. Added the feature rule to Meshal-Plan.md and documented the payload/API. Native storage v3 adds an attachment table without changing saved receipts; attachments and summaries survive reopen, replacement removes the old file, and deleting a receipt removes its attachments. Re-analysis preserves item association or refuses ambiguous matches. Contact us in Settings opens arcos.workspace@gmail.com. Verified 39 app tests, 135 backend tests, 14 isolated native tests, the Android build, English/Arabic and light/dark UI, actual camera launch/cancel, synthetic photo saving, live Gemini receipt payload icon/coverage, and live PDF coverage explanation from the phone. Installed with adb install -r and deployed The Ring with rollback backup pre-warranty-coverage-20261021-105858. Removed only the synthetic test receipts; all four user receipts remain. Saved before/after screenshots and a reviewed 14-second walkthrough in the thread artifacts folder.
+
+Tool: Codex — Developer: Meshal Khaled
+

@@ -1,6 +1,8 @@
 import { ApiError, GoogleGenAI } from '@google/genai';
 import { SYSTEM_INSTRUCTION, VISUAL_PROMPT, textPrompt } from '../analysis/prompts.js';
-import { providerResponseSchema } from '../contracts/receipt.js';
+import { providerResponseSchema, toProviderJsonSchema } from '../contracts/receipt.js';
+import { ProviderCoverage } from '../contracts/coverage.js';
+import { COVERAGE_INSTRUCTION } from '../analysis/coverage.js';
 import { AppError, ClientClosedError } from '../errors.js';
 
 /**
@@ -16,11 +18,13 @@ export function createGeminiProvider({ apiKey, model, timeoutMs }, { client } = 
 
   return {
     name: 'gemini',
-    async analyze({ text, data, mimeType, signal }) {
+    async analyze({ text, data, mimeType, signal, purpose, product, language }) {
+      const coverage = purpose === 'coverage';
+      const termsPrompt = `Explain the attached warranty terms. Output summaries in ${language === 'ar' ? 'Arabic' : 'English'}. Product label (context only, not evidence): ${JSON.stringify(String(product ?? '').slice(0, 150))}.`;
       const parts =
         text !== undefined
-          ? [{ text: textPrompt(text) }]
-          : [{ inlineData: { mimeType, data: data.toString('base64') } }, { text: VISUAL_PROMPT }];
+          ? [{ text: coverage ? `${termsPrompt}\n<terms_text>\n${text}\n</terms_text>` : textPrompt(text) }]
+          : [{ inlineData: { mimeType, data: data.toString('base64') } }, { text: coverage ? termsPrompt : VISUAL_PROMPT }];
 
       const timeout = AbortSignal.timeout(timeoutMs);
       const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
@@ -31,9 +35,9 @@ export function createGeminiProvider({ apiKey, model, timeoutMs }, { client } = 
           model,
           contents: [{ role: 'user', parts }],
           config: {
-            systemInstruction: SYSTEM_INSTRUCTION,
+            systemInstruction: coverage ? COVERAGE_INSTRUCTION : SYSTEM_INSTRUCTION,
             responseMimeType: 'application/json',
-            responseJsonSchema: providerResponseSchema,
+            responseJsonSchema: coverage ? toProviderJsonSchema(ProviderCoverage) : providerResponseSchema,
             temperature: 0,
             abortSignal: combined,
           },
