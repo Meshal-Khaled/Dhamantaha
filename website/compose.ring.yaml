@@ -1,0 +1,28 @@
+# The website on The Ring. Start with:
+#   docker compose -p dhamantaha-website -f compose.ring.yaml up -d --build
+# Published on loopback only, port 3101. The Cloudflare Tunnel points a hostname at http://localhost:3101.
+# The site forwards /v1 to the API container over the network the API project already created.
+name: dhamantaha-website
+
+services:
+  website:
+    build: .
+    image: dhamantaha-website:latest
+    ports:
+      - "127.0.0.1:${WEBSITE_PORT:-3101}:8080"
+    networks: [default, ring]
+    # Nothing is written to disk: pages are in the image and uploads stream straight through to the API.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    mem_limit: 128m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+networks:
+  ring:
+    external: true
+    name: dhamantaha_default

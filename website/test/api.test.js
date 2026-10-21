@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { analyzeReceipt, ApiError, checkFileAgainstLimits, checkHealth, describeError } from '../src/api.js';
+import { analyzeReceipt, ApiError, checkFileAgainstLimits, checkHealth, describeError } from '../src/lib/api.js';
 
 const reply = (status, body, headers = {}) => async () =>
   new Response(typeof body === 'string' ? body : JSON.stringify(body), { status, headers });
@@ -75,7 +75,7 @@ test('checkHealth returns the limits and surfaces a rejected key', async () => {
   const body = { error: { code: 'unauthorized_client', message: 'Unknown key.', requestId: 'r2' } };
   const rejected = await checkHealth(settings, { fetchImpl: reply(401, body) }).catch((e) => e);
   assert.equal(rejected.code, 'unauthorized_client');
-  assert.match(describeError(rejected), /client key/);
+  assert.match(describeError(rejected), /access key/);
 });
 
 test('checkFileAgainstLimits rejects wrong types and oversize files before upload', () => {

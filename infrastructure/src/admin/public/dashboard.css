@@ -27,4 +27,8 @@
 .debug-why{background:var(--lime);border-radius:6px;padding:10px 12px;font-size:11px}
 .debug-why p{margin:6px 0 0;overflow-wrap:anywhere}
 .debug-error{color:var(--error);font-size:11px;margin:0}
+.provider-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+.provider-add{padding:16px;margin:16px 0;border:1px solid var(--line);border-radius:8px;background:#f8faf6}
+.provider-card select{width:100%;border:1px solid var(--line);border-radius:6px;padding:11px;background:white;color:var(--ink);font:inherit}
+.provider-card input[readonly]{background:#f1f4ee;color:var(--muted)}
 .debug-status{font-size:11px;font-weight:600;margin:0}

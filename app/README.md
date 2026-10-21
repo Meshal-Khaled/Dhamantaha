@@ -2,9 +2,11 @@
 
 React + Vite packaged with Capacitor. Photograph or pick a receipt (photo or PDF). Its original is saved privately on the device immediately, even offline. Send a saved receipt to The Ring (`POST /v1/receipts/analyze`) to read it; successful analysis is saved alongside the original.
 
+The website is a separate project in [`../website/`](../website/README.md), with its own interface. The app and the website use the same analysis API but do not share receipts.
+
 ## Frontend integration
 
-The app uses the design from the `Frontend-UI` branch, preserved in `../ضمنتها/`. Its HTML pages remain a reference; the APK runs React screens connected to the real camera, API, and private receipt wallet.
+The app uses the design from the `Frontend-UI` branch, preserved in `../design/`. Its HTML pages remain a reference; the APK runs React screens connected to the real camera, API, and private receipt wallet.
 
 - **Home** shows the saved receipt count, active warranties, and warranty/return deadlines within 30 days. Numbers come from saved data, not demo products. When more pages are available, counts show `+` and the user can load more receipts.
 - **Receipts** searches loaded purchases by product, merchant, or original filename. Open a purchase to see its analysis, current countdowns, original file, and deletion confirmation.

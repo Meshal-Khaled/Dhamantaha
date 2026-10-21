@@ -1,7 +1,8 @@
 // Talks to The Ring. Pure functions, no React, so they run under `node --test`.
 import { localizeError } from './format.js';
 
-export const DEFAULT_API_BASE = 'https://dhamantaha.arc-homlab.com/v1';
+// The site forwards /v1 to The Ring itself, so the browser only ever talks to its own origin.
+export const DEFAULT_API_BASE = '/v1';
 const REQUEST_TIMEOUT_MS = 95_000; // Cloudflare cuts requests at 100 s.
 
 export class ApiError extends Error {
@@ -120,7 +121,7 @@ export function describeError(error, arabic = false) {
   const wait = error.retryAfterSeconds ? ` Try again in ${error.retryAfterSeconds} s.` : '';
   switch (error.code) {
     case 'unauthorized_client':
-      return 'The Ring rejected this app\'s client key. Check it in Settings.';
+      return 'The Ring did not accept this access key. Check it in Settings.';
     case 'rate_limited':
     case 'daily_limit_reached':
     case 'server_busy':
@@ -131,7 +132,7 @@ export function describeError(error, arabic = false) {
     case 'analysis_timeout':
       return `${error.message} This is on The Ring's side; try again shortly.`;
     case 'non_json_response':
-      return 'Something other than The Ring answered (a proxy or captive portal). Check the API address in Settings.';
+      return 'Something other than The Ring answered (a proxy or captive portal). Check your connection and try again.';
     default:
       return error.message;
   }

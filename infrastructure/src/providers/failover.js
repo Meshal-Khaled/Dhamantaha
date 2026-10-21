@@ -26,11 +26,19 @@ export function createFailoverProvider(
   { keys, models, timeoutMs, totalTimeoutMs, hedgeAfterMs = 0, onAttempt, beforeRetry },
   { createAttempt = createGeminiProvider } = {},
 ) {
-  const plan = keys.flatMap((apiKey, slot) => models.map((model) => ({ apiKey, slot, model })));
+  let nextKey = 0;
 
   return {
     name: 'gemini',
     analyze(input) {
+      // Rotate the starting key per request while keeping stable slot names in
+      // monitoring. Each request retains its own complete fallback chain.
+      const start = nextKey;
+      nextKey = (nextKey + 1) % keys.length;
+      const plan = keys.flatMap((_, offset) => {
+        const slot = (start + offset) % keys.length;
+        return models.map((model) => ({ apiKey: keys[slot], slot, model }));
+      });
       const deadlineAt = input.deadlineAt ?? Date.now() + totalTimeoutMs;
       return new Promise((resolve, reject) => {
         const controllers = new Set();
