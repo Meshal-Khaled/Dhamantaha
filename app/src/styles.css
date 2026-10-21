@@ -262,3 +262,11 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .item-card .product-title strong { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
 .item-full-name { font-size: var(--text-sm); font-weight: 600; margin-bottom: 14px; }
 @media (max-width: 390px) { .item-card > summary { flex-wrap: wrap; } .item-card > summary .product-title { flex-basis: calc(100% - 80px); } .item-card > summary .product-price { margin-inline-start: auto; max-width: 85%; } }
+
+/* Five navigation destinations remain readable at small widths and large text. */
+.nav button { min-width: 0; flex: 1; padding-inline: 2px; overflow-wrap: anywhere; }
+.nav-icon { padding-inline: 10px; }
+.spending-cards { display: grid; gap: 14px; margin-block: 18px; }
+.spending-card { margin: 0; min-width: 0; }
+.spending-card h2 { font-size: var(--text-base); }
+.spending-total { font-size: calc(26px * var(--scale)); font-weight: 700; color: var(--green); overflow-wrap: anywhere; margin-block: 12px; }

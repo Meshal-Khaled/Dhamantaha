@@ -1,5 +1,6 @@
+import AnalystScreen from './AnalystScreen.jsx';
 import { useEffect, useRef } from 'react';
-import { ArrowLeft, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
 import { HomeScreen, ReceiptsScreen, SettingsScreen, ResultView, ReceiptEditor, translate } from './WalletScreens.jsx';
 import brand from '../resources/app-icon.png';
 import { describeError } from './api.js';
@@ -43,7 +44,7 @@ export default function WalletLayout({ wallet: w }) {
     const frame = requestAnimationFrame(() => document.querySelector('.editor-card')?.scrollIntoView({ block: 'start' }));
     return () => cancelAnimationFrame(frame);
   }, [w.editing]);
-  const navItems = [['home', House, t('Home', 'الرئيسية')], ['saved', ReceiptText, t('Receipts', 'الفواتير')], ['add', CirclePlus, t('Add receipt', 'إضافة فاتورة')], ['settings', Settings, t('Settings', 'الإعدادات')]];
+  const navItems = [['home', House, t('Home', 'الرئيسية')], ['saved', ReceiptText, t('Receipts', 'الفواتير')], ['add', CirclePlus, t('Add receipt', 'إضافة فاتورة')], ['analyst', BarChart3, t('Analyst', 'الإنفاق')], ['settings', Settings, t('Settings', 'الإعدادات')]];
   const selected = w.page === 'details' ? 'saved' : w.page;
   return <div className={`app theme-${w.appearance.theme} font-${w.appearance.font}`} dir={arabic ? 'rtl' : 'ltr'} lang={w.appearance.language}>
     <div className="phone">
@@ -53,6 +54,7 @@ export default function WalletLayout({ wallet: w }) {
         {w.busy && w.phase !== 'analyzing' && <p role="status" className="operation-status"><LoaderCircle className="spin" size={17} aria-hidden="true" />{w.phase === 'explaining' ? t('Reading the warranty terms…', 'جارٍ قراءة شروط الضمان…') : w.phase === 'saving' ? t('Saving on this device…', 'جارٍ الحفظ على جهازك…') : w.phase === 'deleting' ? t('Deleting receipt…', 'جارٍ حذف الفاتورة…') : w.phase === 'photographing' ? t('Opening the camera…', 'جارٍ فتح الكاميرا…') : t('Opening receipt…', 'جارٍ فتح الفاتورة…')}</p>}
         {w.page === 'home' && <HomeScreen saved={w.saved} arabic={arabic} busy={w.busy} loading={w.loadingSaved} onNavigate={w.navigate} onOpen={w.openReceipt} />}
         {w.page === 'saved' && <ReceiptsScreen saved={w.saved} arabic={arabic} busy={w.busy} loading={w.loadingSaved} onOpen={w.openReceipt} onAdd={() => w.navigate('add')} />}
+        {w.page === 'analyst' && <AnalystScreen saved={w.saved} arabic={arabic} loading={w.loadingSaved} busy={w.busy} onAdd={() => w.navigate('add')} />}
         {w.page === 'settings' && <SettingsScreen settings={w.settings} appearance={w.appearance} onAppearance={w.changeAppearance} arabic={arabic} health={w.health} onRetry={w.connect} log={w.log} onSave={w.saveConnection} onGuard={w.onGuard} />}
         {w.page === 'add' && <>
           <h1 className="title">{t('Add receipt', 'إضافة فاتورة')}</h1><p className="desc">{t('Keep the original. We’ll help with the details.', 'احفظ الأصل، واترك قراءة التفاصيل علينا.')}</p>

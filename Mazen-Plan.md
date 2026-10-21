@@ -299,3 +299,14 @@ Retain Arabic/English, RTL/LTR, light/dark and normal/large text. Scope excludes
 ### Next steps — Tasks 3–4 (deferred)
 
 Continue the existing Android roadmap sections C (receipt details/product cards) and D (add receipt/analysis flow) in a subsequent task, after confirming their exact acceptance scope. Neither is implemented in this sprint. Native device verification remains a separate check; do not clear saved data.
+
+## 15. Analyst and refund/exchange clarity — implemented
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Added a fifth bottom navigation destination: **Analyst / الإنفاق**, with a **تحليل الإنفاق** screen. It reads saved local receipt metadata only; it sends no financial data to a server.
+- Spending totals cover rolling 7, 30 and 365 days, inclusive of today, based on purchase dates rather than import/save dates. Each receipt is counted once per applicable period. Currency totals stay separate; no conversion or guessed currency. These are gross recorded purchases, not net spending after refunds.
+- Receipts without a valid purchase date, nonnegative finite total or known currency, and future-dated receipts, are excluded with a visible count. Unanalyzed receipts are excluded. Empty periods say no recorded spending instead of claiming complete financial coverage. Editing/deleting receipts recomputes totals from the wallet.
+- Receipt details now explain that warranty, return/refund (استرجاع) and exchange/replacement (استبدال) are separate terms. Refund and exchange deadlines are displayed separately using existing recorded policy fields and calculations; absent deadlines remain unknown. A warranty is not automatically labeled as permitting a refund or replacement. Original printed terms remain visible.
+- No backend, website, QR, production deployment, native schema, saved-data migration, credentials or warranty-math changes. No fake account/notification controls. The downloadable demo uses an isolated sample-only database.
+- Validation: app npm ci succeeded, all 50 tests passed (no failures/skips), production build succeeded. Eight Chromium language/theme/text-size combinations at 320px passed empty/populated Analyst, correct totals, five-tab navigation, separate refund/exchange dates, and no horizontal overflow/runtime errors. Native Android/device installation remains untested.

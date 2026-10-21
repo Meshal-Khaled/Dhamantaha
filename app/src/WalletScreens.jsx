@@ -175,12 +175,11 @@ function ReturnPolicy({ receipt, arabic }) {
   const t = translate(arabic);
   const policy = receiptPolicy(receipt);
   return <div className="policy">
-    <h3><Undo2 size={16} aria-hidden="true" />{t('Returns & refunds', 'الإرجاع والاسترداد')}</h3>
-    {policy.text ? <>
-      {policy.returnEnd && <PeriodLine date={policy.returnEnd} days={policy.returnDays} arabic={arabic} label={t('Return for a refund', 'الإرجاع واسترداد المبلغ')} kind="refund" />}
-      {policy.exchangeEnd && <PeriodLine date={policy.exchangeEnd} days={policy.exchangeDays} arabic={arabic} label={t('Exchange', 'الاستبدال')} kind="exchange" />}
-      <p className="policy-text" dir="auto">{policy.text}</p>
-    </> : <p className="tip">{t('Not stated on the receipt. You can add a return period with Edit below.', 'غير مذكورة في الفاتورة. يمكنك إضافة مدة الإرجاع من زر التعديل أدناه.')}</p>}
+    <h3><Undo2 size={16} aria-hidden="true" />{t('Return / refund & exchange', 'الاسترجاع والاستبدال')}</h3>
+    <p className="tip">{t('Warranty, refund and exchange are separate terms. A warranty does not automatically mean a refund or replacement is allowed. Confirm the printed policy with the store.', 'الضمان والاسترجاع والاستبدال شروط منفصلة. وجود ضمان لا يعني تلقائيًا السماح باسترجاع المبلغ أو الاستبدال. تحقق من الشروط المطبوعة مع المتجر.')}</p>
+    {policy.returnEnd ? <PeriodLine date={policy.returnEnd} days={policy.returnDays} arabic={arabic} label={t('Return for a refund', 'استرجاع المبلغ')} kind="refund" /> : <p className="tip">{t('Refund deadline: unknown', 'موعد الاسترجاع: غير معروف')}</p>}
+    {policy.exchangeEnd ? <PeriodLine date={policy.exchangeEnd} days={policy.exchangeDays} arabic={arabic} label={t('Exchange / replacement', 'الاستبدال')} kind="exchange" /> : <p className="tip">{t('Exchange deadline: unknown', 'موعد الاستبدال: غير معروف')}</p>}
+    {policy.text ? <p className="policy-text" dir="auto">{policy.text}</p> : <p className="tip">{t('No printed policy available. Review the original or ask the store; unknown does not mean unavailable.', 'لا توجد سياسة مطبوعة مسجلة. راجع الأصل أو اسأل المتجر؛ غير معروف لا يعني غير متاح.')}</p>}
   </div>;
 }
 
