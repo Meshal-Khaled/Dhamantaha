@@ -241,3 +241,9 @@ Tool: Claude Code — Developer: Meshal Khaled
 
 Tool: Claude Code — Developer: Meshal Khaled
 
+## 2026-10-21 16:40 (Asia/Riyadh)
+
+**Update:** Rebuilt the Android app with the user monitoring counters and installed it on the phone with `adb install -r` (`npm run android:install`: web build, `cap sync`, `gradle assembleDebug`, install, launch). The build succeeded and the install reported Success. App data was kept: the phone still has its 4 receipts (4 original files in the private receipt store, `receipts.db` present), and the app opens on the Home screen showing 4 receipts and 4 active warranties. I did not open a receipt or download an original on the phone, so no test counts were sent to The Ring; the first real reopen or original download will be the first count on the Monitoring page. Not yet checked end to end on the phone. Committed on branch `claude/user-monitoring`; not pushed.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
