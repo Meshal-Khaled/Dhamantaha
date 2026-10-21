@@ -55,21 +55,46 @@ export function qrPixels(matrix, pixelsPerModule = 8, { quiet = QUIET_ZONE, dark
 }
 
 /**
- * The address the code should open: the teams page on this site, or `override` when one is given (to make a code
- * for the public address from a computer that is not on it). Only http and https addresses are accepted.
+ * The address a code should open, from whatever was typed or passed in. A bare site name gets https:// in front and
+ * the teams page path behind it, so "web-dhamantaha.arc-homlab.com" is enough; a full address is kept as it is.
+ * A bare address on this computer or a private network gets http://, because nothing there has a certificate.
+ * Only http and https are accepted. Returns null when the text is not a web address.
  */
-export function pageAddress(origin, override = null) {
-  const candidate = override || `${origin}/teams`;
+export function normalizeAddress(input, path = '/teams') {
+  const text = String(input ?? '').trim();
+  if (!text) return null;
   try {
-    const url = new URL(candidate);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') throw new Error('not a web address');
+    const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(text);
+    let url = new URL(hasScheme ? text : `https://${text}`);
+    if (!hasScheme && isPrivateHost(url.hostname)) url = new URL(`http://${text}`);
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+    if (url.username || url.password) return null;
+    if (!url.hostname.includes('.') && url.hostname !== 'localhost') return null;
+    if (url.pathname === '/' && !url.search && !url.hash) url.pathname = path;
     return url.href;
   } catch {
-    return new URL('/teams', origin).href;
+    return null;
   }
+}
+
+/** The teams page on `site` (the website's address), or on `override` when a valid one is given. */
+export function pageAddress(site, override = null, path = '/teams') {
+  return normalizeAddress(override, path) ?? normalizeAddress(site, path) ?? `https://example.invalid${path}`;
 }
 
 /** True for addresses a phone cannot reach: this computer, or a private network. */
 export function isPrivateHost(hostname) {
   return /^(localhost|127\.|0\.0\.0\.0|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$)/.test(hostname) || !hostname.includes('.');
+}
+
+/**
+ * The website the code should lead to. When this page is opened on a public address, that address is the website.
+ * When it is opened on a private one (the development server, an SSH forward to port 3101) a phone could never
+ * follow the code, so the public site is used instead.
+ */
+export function siteForCode(origin, publicSite) {
+  try {
+    if (!isPrivateHost(new URL(origin).hostname)) return origin;
+  } catch { /* an unreadable origin falls through to the public site */ }
+  return publicSite || origin;
 }

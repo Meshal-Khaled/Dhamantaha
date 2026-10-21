@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { CircleAlert, Download, Printer } from 'lucide-react';
+import { CircleAlert, Download, Pencil, Printer, RotateCcw } from 'lucide-react';
 import Button from '../components/Button.jsx';
 import useNoIndex from '../components/useNoIndex.js';
 import usePageTitle from '../components/usePageTitle.js';
-import { isPrivateHost, pageAddress, qrMatrix, qrPath, qrPixels, qrSvg } from '../lib/qr.js';
+import { isPrivateHost, normalizeAddress, pageAddress, qrMatrix, qrPath, qrPixels, qrSvg, siteForCode } from '../lib/qr.js';
+import { PUBLIC_SITE } from '../lib/site.js';
 import { useSettings } from '../state/settings.jsx';
 
 function save(blob, name) {
@@ -16,13 +17,23 @@ function save(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-/** A large QR code for the teams page, to show on a screen, print, or paste into slides. */
+/**
+ * A large QR code for the teams page, to show on a screen, print, or paste into slides. The code always leads to the
+ * teams page of the public website, whatever address this page is opened from. The address can be changed on the page
+ * (or with ?url=) when the website moves to another name.
+ */
 export default function QrPage() {
   const { t } = useSettings();
   usePageTitle('qr.tab');
   useNoIndex();
+  const inputId = useId();
   const [params] = useSearchParams();
-  const address = useMemo(() => pageAddress(window.location.origin, params.get('url')), [params]);
+  const [typed, setTyped] = useState(() => params.get('url') ?? '');
+  const [startsOpen] = useState(() => Boolean(params.get('url')));
+  const standard = useMemo(() => pageAddress(siteForCode(window.location.origin, PUBLIC_SITE)), []);
+  const custom = normalizeAddress(typed);
+  const invalid = typed.trim() !== '' && custom === null;
+  const address = custom ?? standard;
   const matrix = useMemo(() => qrMatrix(address), [address]);
   const { size, d } = useMemo(() => qrPath(matrix), [matrix]);
   const host = new URL(address).hostname;
@@ -57,5 +68,19 @@ export default function QrPage() {
         <Button variant="secondary" size="sm" onClick={() => window.print()}><Printer size={18} aria-hidden="true" />{t('qr.print')}</Button>
       </div>
     </section>
+    <details className="qr-edit" open={startsOpen || undefined}>
+      <summary><Pencil size={16} aria-hidden="true" />{t('qr.edit')}</summary>
+      <div className="qr-edit__body">
+        <div className="field">
+          <label htmlFor={inputId}>{t('qr.edit.label')}</label>
+          <input className="input" id={inputId} dir="ltr" value={typed} onChange={(event) => setTyped(event.target.value)}
+            placeholder={new URL(standard).host} inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            aria-invalid={invalid} aria-describedby={`${inputId}-hint`} />
+          <small className="muted" id={`${inputId}-hint`}>{t('qr.edit.hint')}</small>
+          {invalid && <small className="field__error" role="alert"><CircleAlert size={14} aria-hidden="true" />{t('qr.edit.invalid', { example: new URL(standard).host })}</small>}
+        </div>
+        {typed && <Button variant="ghost" size="sm" onClick={() => setTyped('')}><RotateCcw size={16} aria-hidden="true" />{t('qr.edit.reset')}</Button>}
+      </div>
+    </details>
   </div>;
 }

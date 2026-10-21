@@ -98,8 +98,16 @@ textarea.input { min-height: 96px; resize: vertical; line-height: 1.6; }
 .qr-address code { padding: 10px 14px; border-radius: 12px; background: var(--surface-alt); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: .9375rem; overflow-wrap: anywhere; user-select: all; }
 .qr-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
 
+.qr-edit { width: min(100%, 720px); border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
+.qr-edit summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 18px; border-radius: 16px; color: var(--ink-soft); font-weight: 600; list-style: none; }
+.qr-edit summary::-webkit-details-marker { display: none; }
+.qr-edit summary:hover { color: var(--brand-strong); }
+.qr-edit[open] summary { border-bottom: 1px solid var(--line); border-end-start-radius: 0; border-end-end-radius: 0; }
+.qr-edit__body { display: grid; justify-items: start; gap: 12px; padding: 18px; }
+.qr-edit__body .field { width: 100%; }
+
 @media print {
-  .skip-link, .event-header, .event-footer, .qr-actions, .qr-warning, .toasts { display: none !important; }
+  .skip-link, .event-header, .event-footer, .qr-actions, .qr-warning, .qr-edit, .toasts { display: none !important; }
   .event-main, body { background: #fff !important; }
   .qr-card { box-shadow: none; width: 100%; }
   .qr-code { width: 70vmin; }
