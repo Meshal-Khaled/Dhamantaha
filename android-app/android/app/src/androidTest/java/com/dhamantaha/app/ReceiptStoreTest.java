@@ -60,6 +60,30 @@ public class ReceiptStoreTest {
         assertEquals("application/pdf", store.get(pdfId).getString("mime"));
     }
 
+    @Test public void itemAssetsSurviveReopenReplaceSafelyAndDeleteWithReceipt() throws Exception {
+        String id = store.save("receipt.pdf", "application/pdf", "%PDF original assets test".getBytes()).getString("id");
+        store.updateAnalysis(id, new JSONObject("{\"receipt\":{},\"items\":[{\"description\":\"Laptop\"},{\"description\":\"Bag\"}]}"));
+        store.saveAsset(id, 0, "photo", "laptop.jpg", "image/jpeg", new byte[]{1, 2, 3});
+        store.saveAsset(id, 1, "terms", "terms.pdf", "application/pdf", "%PDF warranty terms".getBytes());
+        String photoId = store.assets(id).getJSONObject(0).getString("id");
+        String termsId = store.assets(id).getJSONObject(1).getString("id");
+        store.saveExplanation(id, termsId, new JSONObject("{\"coverage\":{\"sourceText\":\"Printed conditions\"}}"));
+        store.close(); store = new ReceiptStore(context, directory);
+        assertEquals(2, store.assets(id).length());
+        assertArrayEquals(new byte[]{1, 2, 3}, readBytes(store.assetFile(photoId)));
+        assertTrue(store.asset(id, termsId).getJSONObject("explanation").has("coverage"));
+        try { store.asset(UUID.randomUUID().toString(), termsId); fail("must scope to owner"); } catch (IllegalArgumentException expected) {}
+        try { store.saveAsset(id, 8, "photo", "invalid.jpg", "image/jpeg", new byte[]{1}); fail("must validate item"); } catch (IllegalArgumentException expected) {}
+        store.saveAsset(id, 0, "photo", "new.jpg", "image/jpeg", new byte[]{4, 5});
+        assertFalse(store.assetFile(photoId).exists());
+        assertTrue(store.assetFile(termsId).exists());
+        File newPhoto = store.assetFile(store.assets(id).getJSONObject(0).getString("id"));
+        store.cleanOrphans(); assertTrue(newPhoto.exists());
+        store.delete(id);
+        assertFalse(newPhoto.exists()); assertFalse(store.assetFile(termsId).exists());
+        assertEquals(0, store.assets(id).length());
+    }
+
     @Test public void analysisPersistsWithoutChangingOriginalOrAddingRows() throws Exception {
         byte[] bytes = "%PDF-1.7 receipt".getBytes();
         String id = store.save("receipt.pdf", "application/pdf", bytes).getString("id");

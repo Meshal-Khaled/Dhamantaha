@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ACCEPTED_TYPES } from '../intake/fileType.js';
 import { DURATION_UNITS } from '../wallet/warranty.js';
+import { Coverage, CoverageResponse, ITEM_ICONS } from './coverage.js';
 
 const text = (description) => z.string().nullable().describe(description);
 const amount = (description) => z.number().nullable().describe(description);
@@ -35,6 +36,7 @@ export const ProviderReceipt = z.object({
       description: text('The full item line exactly as printed.'),
       displayName: text('Short readable product name: brand, product type, and model, capacity, size, or color. No codes, category labels, prices, or stray symbols; all-caps words in normal capitalization.'),
       category: text('Category or department label printed on the item line, if any.'),
+      icon: z.enum(ITEM_ICONS).describe('Visual category for an item icon; use package if unclear. This is a UI hint, not a printed fact.'),
       quantity: amount('Quantity purchased.'),
       unitPrice: amount('Price per unit.'),
       totalPrice: amount('Line total.'),
@@ -46,6 +48,7 @@ export const ProviderReceipt = z.object({
         durationUnit: unit('Unit of the warranty length.'),
         expirationDate: text('Warranty end date as YYYY-MM-DD, only if printed.'),
         provider: text('Company that gives the warranty, only if the receipt names one other than the seller.'),
+        coverage: Coverage.nullable().describe('Explain coverage only when actual warranty conditions are printed. Every point must cite exact sourceText; null when absent.'),
       }),
     }),
   ),
@@ -93,6 +96,7 @@ export const WalletItem = z.object({
   description: text('The item line as printed.'),
   displayName: text('Short readable product name to show; falls back to description.'),
   category: text('Category or department printed on the line.'),
+  icon: z.enum(ITEM_ICONS),
   quantity: z.number().positive().nullable(),
   unitPrice: z.number().nullable(),
   totalPrice: z.number().nullable(),
@@ -106,6 +110,7 @@ export const WalletItem = z.object({
     expirationBasis: z.enum(['printed', 'calculated']).nullable(),
     status: z.enum(['active', 'expiring_soon', 'expired', 'unknown']),
     provider: text('Warranty provider named on the receipt when it is not the seller.'),
+    coverage: Coverage.nullable(),
   }),
 });
 
@@ -161,3 +166,4 @@ export const apiSchemas = z.registry();
 AnalysisResponse.register(apiSchemas, { id: 'AnalysisResponse' });
 ErrorResponse.register(apiSchemas, { id: 'ErrorResponse' });
 HealthResponse.register(apiSchemas, { id: 'HealthResponse' });
+CoverageResponse.register(apiSchemas, { id: 'CoverageResponse' });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
-import { analyzeReceipt, ApiError, checkFileAgainstLimits, checkHealth } from './api.js';
+import { analyzeReceipt, explainWarranty, ApiError, checkFileAgainstLimits, checkHealth, describeError } from './api.js';
 import { loadAppearance, saveAppearance } from './appearance.js';
 import { editAnalysis } from './wallet-view.js';
 import WalletLayout from './WalletLayout.jsx';
@@ -27,6 +27,7 @@ export default function App() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmAnalyze, setConfirmAnalyze] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState(null);
+  const [pendingCoverage, setPendingCoverage] = useState(null);
   const [outcome, setOutcome] = useState(null);
   const [log, setLog] = useState([]);
   const [dirty, setDirty] = useState(false);
@@ -50,7 +51,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (phase !== 'analyzing') return;
+    if (phase !== 'analyzing' && phase !== 'explaining') return;
     const started = Date.now();
     setElapsed(0);
     const timer = setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
@@ -191,9 +192,9 @@ export default function App() {
 
   const requestAction = (action) => {
     if (operation.current) return;
-    if (pendingAnalysis || formGuard.current.dirty) {
+    if (pendingAnalysis || pendingCoverage || formGuard.current.dirty) {
       queuedAction.current = action;
-      setLeaveDialog(pendingAnalysis ? 'analysis' : 'edits');
+      setLeaveDialog(pendingAnalysis || pendingCoverage ? 'analysis' : 'edits');
       return;
     }
     action();
@@ -233,6 +234,7 @@ export default function App() {
     setConfirmDelete(false);
     setConfirmAnalyze(false);
     setPendingAnalysis(null);
+    setPendingCoverage(null);
     setStorageError('');
   };
   const navigate = (target) => {
@@ -275,16 +277,67 @@ export default function App() {
     finally { finish(); }
   };
 
+  const updatePicked = record => setPicked(current => ({ ...current, record }));
+  const saveItemAsset = async (index, kind, file) => {
+    if (!begin('saving')) return;
+    try {
+      updatePicked(await receiptWallet.saveAsset(pickedRef.current.record.id, index, kind, file));
+      setToast('changes_saved');
+    } catch (error) { setStorageError(error.message); }
+    finally { finish(); }
+  };
+  const takeItemPhoto = async index => {
+    if (!begin('photographing')) return;
+    try {
+      const photo = await Camera.getPhoto({ source: CameraSource.Camera, resultType: CameraResultType.Uri, quality: 85, width: 1200, height: 1200, saveToGallery: false });
+      const blob = await (await fetch(photo.webPath)).blob();
+      const file = new File([blob], `item.${photo.format}`, { type: blob.type || `image/${photo.format}` });
+      updatePicked(await receiptWallet.saveAsset(pickedRef.current.record.id, index, 'photo', file));
+      setToast('changes_saved');
+    } catch (error) { if (!/cancel/i.test(String(error?.message))) setStorageError(String(error?.message ?? error)); }
+    finally { finish(); }
+  };
+  const retryCoverage = async () => {
+    if (!pendingCoverage || !begin('saving')) return false;
+    try {
+      updatePicked(await receiptWallet.saveExplanation(pickedRef.current.record.id, pendingCoverage.assetId, pendingCoverage.result));
+      setPendingCoverage(null); setToast('changes_saved'); return true;
+    } catch (error) { setStorageError(error.message); return false; }
+    finally { finish(); }
+  };
+  const openItemAsset = async assetId => {
+    if (!begin('opening')) return;
+    try { await receiptWallet.openAsset(pickedRef.current.record.id, assetId); }
+    catch (error) { setStorageError(error.message); }
+    finally { finish(); }
+  };
+  const explainItem = async (index, asset) => {
+    if (!begin('explaining')) return;
+    try {
+      const current = pickedRef.current.record;
+      const { file } = await receiptWallet.getAsset(current.id, asset.id);
+      const problem = checkFileAgainstLimits(file, health.body?.limits);
+      if (problem) throw new ApiError({ code: 'rejected_locally', message: problem });
+      const item = current.analysis.items[index];
+      const result = await explainWarranty({ ...settings, file, product: item.displayName || item.description, language: appearance.language });
+      setPendingCoverage({ assetId: asset.id, result: result.body });
+      updatePicked(await receiptWallet.saveExplanation(current.id, asset.id, result.body));
+      setPendingCoverage(null); setToast('changes_saved');
+    } catch (error) { setStorageError(describeError(error, appearance.language === 'ar')); }
+    finally { finish(); }
+  };
+
   const stay = () => { queuedAction.current = null; setLeaveDialog(null); };
   const leave = async (save) => {
     const action = queuedAction.current;
     if (save) {
-      const success = pendingAnalysis ? await retrySave() : await formGuard.current.save();
+      const success = pendingAnalysis ? await retrySave() : pendingCoverage ? await retryCoverage() : await formGuard.current.save();
       if (!success) return;
     }
     queuedAction.current = null;
     setLeaveDialog(null);
     clearGuard();
+    setPendingCoverage(null);
     action?.();
   };
   const cancelEditing = () => requestAction(() => { clearGuard(); setEditing(false); });
@@ -304,5 +357,5 @@ export default function App() {
   };
   useNativeChrome({ theme: appearance.theme, onBack: handleBack, canGoBack: page !== 'home' || busy || !!leaveDialog || confirmAnalyze || confirmDelete });
 
-  return <WalletLayout wallet={{ appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, setEditing, connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave }} />;
+  return <WalletLayout wallet={{ appearance, settings, health, picked, busy, phase, elapsed, page, saved, loadingSaved, storageError, confirmDelete, confirmAnalyze, pendingAnalysis, pendingCoverage, outcome, log, fileInput, native, editing, dirty, leaveDialog, toast, setEditing, connect, refreshSaved, openReceipt, takePhoto, onFile, send: requestAnalyze, confirmSend: send, openOriginal, retrySave, deleteReceipt, navigate, changeAppearance, saveConnection, saveEdits, onGuard, cancelEditing, requestDelete, setConfirmDelete, setConfirmAnalyze, stay, leave, saveItemAsset, takeItemPhoto, explainItem, retryCoverage, openItemAsset }} />;
 }

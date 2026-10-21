@@ -1,4 +1,5 @@
 :root { font-family: Tahoma, 'Segoe UI', system-ui, sans-serif; color-scheme: light; }
+html { scroll-padding-top: calc(env(safe-area-inset-top) + 12px); }
 * { box-sizing: border-box; }
 body { margin: 0; background: #f6f9f7; -webkit-tap-highlight-color: transparent; }
 body:has(.theme-dark) { background: #102622; }
@@ -13,6 +14,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 }
 .app.font-large { --scale: 1.15; }
 .app.theme-dark { color-scheme: dark; --green: #55d6b8; --dark: #b8f2df; --pale: #24473c; --bg: #102622; --text: #e8f5ef; --sub: #b5cbc2; --line: #35564b; --white: #19342e; --track: #385b4e; --bad: #ffb0a8; --warn: #f5c47a; }
+.app::before { content: ''; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top); background: var(--bg); z-index: 20; pointer-events: none; }
 .phone { width: 100%; max-width: 560px; margin: 0 auto; min-height: 100dvh; padding-bottom: calc(94px + env(safe-area-inset-bottom)); }
 .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: calc(9px + env(safe-area-inset-top)) 16px 8px; }
 .brand { display: flex; align-items: center; gap: 3px; border: 0; padding: 0; background: transparent; color: var(--green); min-height: 46px; }
@@ -131,6 +133,33 @@ p { margin: 0 0 12px; }
 .item-body .facts { margin-top: 16px; }
 .printed-line span { font-weight: 600; }
 .item-body .no-warranty { margin-top: 0; }
+.item-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: none; color: var(--green); background: var(--pale); border-radius: 11px; }
+.item-icon svg { width: 23px; height: 23px; }
+.item-photo-shortcut { position: relative; display: grid; place-items: center; width: 44px; height: 46px; flex: none; padding: 0; border: 0; border-radius: 11px; background: transparent; }
+.camera-badge { position: absolute; inset-inline-end: -2px; bottom: -1px; box-sizing: content-box; padding: 3px; border-radius: 50%; background: var(--white); color: var(--green); border: 1px solid var(--line); }
+.item-thumbnail { position: relative; width: 42px; height: 42px; flex: none; }
+.item-thumbnail .item-photo { position: absolute; inset: 0; width: 42px; height: 42px; object-fit: cover; margin: 0; border-radius: 11px; }
+.item-extras { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.item-photo { display: block; width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px; background: var(--bg); margin-bottom: 12px; }
+.item-photo-actions, .terms-actions .row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.item-photo-actions button, .terms-actions button { font-size: var(--text-sm); }
+.terms-actions { margin-top: 22px; }
+.terms-actions h3, .coverage-explainer h3 { margin: 0 0 8px; font-size: var(--text-base); }
+.attachment-name { overflow-wrap: anywhere; font-size: var(--text-sm); color: var(--sub); }
+.coverage-explainer { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 18px; }
+.coverage-explainer h3 { display: flex; align-items: center; gap: 7px; }
+.coverage-group { margin: 15px 0; padding-inline-start: 12px; border-inline-start: 3px solid var(--green); }
+.coverage-group.excluded { border-color: var(--bad); }
+.coverage-group.unclear { border-color: var(--warn); }
+.coverage-group h4 { margin: 0 0 8px; font-size: var(--text-sm); }
+.coverage-point { font-size: var(--text-sm); margin-bottom: 12px; }
+.coverage-point p { margin-bottom: 5px; }
+.coverage-point summary, .full-terms summary { color: var(--green); font-size: var(--text-sm); padding-block: 6px; cursor: pointer; }
+.coverage-point blockquote { margin: 7px 0; padding: 10px; border-radius: 8px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; }
+.full-terms { margin-bottom: 12px; }
+.full-terms p { font-size: var(--text-sm); white-space: pre-wrap; overflow-wrap: anywhere; }
+.period-ended { color: var(--sub); }
+.contact-card .secondary { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; max-width: 100%; overflow-wrap: anywhere; font-size: var(--text-sm); }
 .facts { display: grid; grid-template-columns: auto 1fr; gap: 10px 16px; margin: 15px 0 0; font-size: var(--text-sm); }
 .facts dt { color: var(--sub); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }

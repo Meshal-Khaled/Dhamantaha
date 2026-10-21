@@ -28,6 +28,15 @@ export function buildOpenApi(config) {
       ...(keyRequired ? { securitySchemes: { clientKey: { type: 'apiKey', in: 'header', name: 'X-Client-Key' } } } : {}),
     },
     paths: {
+      '/v1/warranty/explain': {
+        post: {
+          summary: 'Explain attached warranty terms with supporting quotations',
+          description: 'One terms photo or PDF. Summaries use only supplied terms; uploads are processed in memory. Same authentication, rate, file, concurrency and daily provider limits as receipt analysis.',
+          ...(keyRequired ? { security: [{ clientKey: [] }] } : {}),
+          requestBody: { required: true, content: { 'multipart/form-data': { schema: { type: 'object', required: ['file'], properties: { file: { type: 'string', format: 'binary' }, product: { type: 'string', maxLength: 150 }, language: { type: 'string', enum: ['en', 'ar'] } } } } } },
+          responses: { 200: json(ref('CoverageResponse'), 'Covered, excluded, and unclear points with exact source quotes.'), 401: error('Unauthorized client.'), 413: error('File too large.'), 422: error('Unreadable terms or invalid file.'), 429: error('Rate limited.'), 502: error('Analysis unavailable.'), 503: error('Budget reached or busy.'), 504: error('Analysis timeout.') },
+        },
+      },
       '/health': {
         get: {
           summary: 'Check that the service is running',

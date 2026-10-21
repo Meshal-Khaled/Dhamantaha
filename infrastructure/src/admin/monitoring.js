@@ -9,7 +9,7 @@ export function createMonitoring({ now = () => Date.now() } = {}) {
   const buckets = new Map();
   return {
     begin(req, res, next) {
-      if (req.method !== 'POST' || req.path !== '/v1/receipts/analyze') return next();
+      if (req.method !== 'POST' || !['/v1/receipts/analyze', '/v1/warranty/explain'].includes(req.path)) return next();
       active += 1;
       let ended = false;
       const finish = () => { if (!ended) { ended = true; active -= 1; } };
@@ -18,7 +18,7 @@ export function createMonitoring({ now = () => Date.now() } = {}) {
       next();
     },
     record(entry) {
-      if (entry.method !== 'POST' || entry.path !== '/v1/receipts/analyze') return;
+      if (entry.method !== 'POST' || !['/v1/receipts/analyze', '/v1/warranty/explain'].includes(entry.path)) return;
       const timestamp = now();
       total += 1;
       const ok = entry.status >= 200 && entry.status < 300;

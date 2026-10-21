@@ -81,9 +81,44 @@ public class ReceiptWalletPlugin extends Plugin {
         execute(call, () -> {
             String id = call.getString("id");
             store.delete(id);
-            File preview = new File(getContext().getCacheDir(), "receipt-preview/" + id);
-            preview.delete();
+            File directory = new File(getContext().getCacheDir(), "receipt-preview");
+            File[] previews = directory.listFiles();
+            if (previews != null) for (File preview : previews) if (preview.getName().startsWith(id)) preview.delete();
             return new JSObject();
+        });
+    }
+
+    @PluginMethod public void saveAsset(PluginCall call) {
+        execute(call, () -> {
+            String data = call.getString("data", "");
+            if (data.length() > ReceiptStore.MAX_BYTES * 4L / 3L + 4L) throw new IllegalArgumentException("Choose a file up to 20 MB.");
+            return JSObject.fromJSONObject(store.saveAsset(call.getString("id"), call.getInt("index", -1), call.getString("kind", ""), call.getString("name"), call.getString("mime", ""), Base64.decode(data, Base64.DEFAULT)));
+        });
+    }
+
+    @PluginMethod public void getAsset(PluginCall call) {
+        execute(call, () -> {
+            String assetId = call.getString("assetId");
+            JSObject result = JSObject.fromJSONObject(store.asset(call.getString("id"), assetId));
+            result.put("uri", Uri.fromFile(store.assetFile(assetId)).toString());
+            return result;
+        });
+    }
+
+    @PluginMethod public void saveExplanation(PluginCall call) {
+        execute(call, () -> {
+            JSONObject explanation = call.getObject("explanation");
+            if (explanation == null) throw new IllegalArgumentException("Invalid explanation.");
+            return JSObject.fromJSONObject(store.saveExplanation(call.getString("id"), call.getString("assetId"), explanation));
+        });
+    }
+
+    @PluginMethod public void openAsset(PluginCall call) {
+        execute(call, () -> {
+            String assetId = call.getString("assetId");
+            JSONObject asset = store.asset(call.getString("id"), assetId);
+            openFile(call, store.assetFile(assetId), call.getString("id") + "-" + asset.getInt("index") + "-" + asset.getString("kind"), asset.getString("mime"));
+            return null;
         });
     }
 
@@ -91,17 +126,23 @@ public class ReceiptWalletPlugin extends Plugin {
         execute(call, () -> {
             String id = call.getString("id");
             JSONObject record = store.get(id);
+            openFile(call, store.original(id), id, record.getString("mime"));
+            return null;
+        });
+    }
+
+    private void openFile(PluginCall call, File original, String id, String mime) throws Exception {
             File directory = new File(getContext().getCacheDir(), "receipt-preview");
             if (!directory.isDirectory() && !directory.mkdirs()) throw new IllegalStateException();
             File file = new File(directory, id);
-            try (FileInputStream input = new FileInputStream(store.original(id));
+            try (FileInputStream input = new FileInputStream(original);
                  FileOutputStream output = new FileOutputStream(file)) {
                 byte[] buffer = new byte[8192];
                 int count;
                 while ((count = input.read(buffer)) != -1) output.write(buffer, 0, count);
             }
             Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", file);
-            Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, record.getString("mime"))
+            Intent intent = new Intent(Intent.ACTION_VIEW).setDataAndType(uri, mime)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             getActivity().runOnUiThread(() -> {
                 try {
@@ -111,8 +152,6 @@ public class ReceiptWalletPlugin extends Plugin {
                     call.reject("Install a PDF or image viewer to open this file.", "viewer_unavailable");
                 }
             });
-            return null;
-        });
     }
 
     @Override protected void handleOnDestroy() {

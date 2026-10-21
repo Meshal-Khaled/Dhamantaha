@@ -71,3 +71,24 @@ test('whole-wallet metadata includes receipts beyond the first page without open
   assert.equal(result.at(-1).name, 'receipt-120');
   assert.deepEqual(offsets, [0, 50, 100]);
 });
+
+test('re-analysis keeps item attachments aligned and refuses ambiguous matches without overwriting', async () => {
+  const previous = { items: [{ description: 'Laptop' }, { description: 'Bag' }] };
+  let saved;
+  const wallet = createReceiptWallet({ get: async () => ({ record: { name: 'bill.pdf', analysis: previous, assets: [{ index: 0, kind: 'photo' }] }, file: new Blob(['pdf']) }), updateAnalysis: async (id, body) => { saved = body; return { analysis: body }; } });
+  await wallet.analyze('one', {}, async () => ({ body: { items: [{ description: 'Bag' }, { description: 'Laptop' }] } }));
+  assert.deepEqual(saved.items.map(item => item.description), ['Laptop', 'Bag']);
+  saved = null;
+  await assert.rejects(wallet.analyze('one', {}, async () => ({ body: { items: [{ description: 'New laptop' }, { description: 'Bag' }] } })), /could not match/);
+  assert.equal(saved, null);
+});
+
+test('item attachments validate size and type and never become new receipts', async () => {
+  const calls = [];
+  const wallet = createReceiptWallet({ saveAsset: (...args) => calls.push(args), save: () => assert.fail('not a receipt') });
+  const photo = new File(['photo'], 'laptop.jpg', { type: 'image/jpeg' });
+  await wallet.saveAsset('one', 0, 'photo', photo);
+  assert.deepEqual(calls[0], ['one', 0, 'photo', photo, 'image/jpeg']);
+  await assert.rejects(wallet.saveAsset('one', 0, 'photo', new File(['pdf'], 'terms.pdf', { type: 'application/pdf' })), /photo or a PDF/);
+  await assert.rejects(wallet.saveAsset('one', 0, 'terms', new File([], 'terms.pdf', { type: 'application/pdf' })), /nonempty/);
+});

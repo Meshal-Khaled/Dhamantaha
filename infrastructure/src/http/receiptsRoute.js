@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { analyzeReceipt } from '../analysis/analyzeReceipt.js';
 import { AnalysisResponse } from '../contracts/receipt.js';
+import { CoverageResponse } from '../contracts/coverage.js';
 import { recordingProvider } from '../admin/debugCapture.js';
 import { AppError, ClientClosedError } from '../errors.js';
 import { withDeadline } from '../providers/index.js';
@@ -18,8 +19,8 @@ export function receiptsRouter({ config, provider, budget, logger }) {
     next(new AppError(503, 'analysis_not_configured', 'Receipt analysis is not configured on this server.'));
   };
 
-  router.post(
-    '/receipts/analyze',
+  for (const [path, purpose, schema] of [['/receipts/analyze', 'receipt', AnalysisResponse], ['/warranty/explain', 'coverage', CoverageResponse]]) router.post(
+    path,
     analysisRateLimit(config.limits.rateLimitPerMinute),
     clientKeyCheck(config.clientKeys),
     requireProvider,
@@ -49,11 +50,14 @@ export function receiptsRouter({ config, provider, budget, logger }) {
           today: todayIn(config.walletTimeZone),
           signal: controller.signal,
           meta: res.locals.logFields,
+          purpose,
+          product: String(req.body?.product ?? '').slice(0, 150),
+          language: req.body?.language === 'ar' ? 'ar' : 'en',
         });
         res.locals.logFields.processingMethod = result.processingMethod;
 
         const body = { requestId: req.id, ...result };
-        const checked = AnalysisResponse.safeParse(body);
+        const checked = schema.safeParse(body);
         if (!checked.success) {
           // Paths only: issue messages can echo values.
           logger.error({ event: 'contract_violation', requestId: req.id, paths: checked.error.issues.map((i) => i.path.join('.')) });

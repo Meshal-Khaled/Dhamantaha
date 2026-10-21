@@ -90,6 +90,7 @@ const arabicErrors = {
   no_file: 'اختر صورة أو ملف PDF للفاتورة أولًا.',
   analysis_not_configured: 'خدمة التحليل غير مهيأة حاليًا. حاول مجددًا لاحقًا.',
   unreadable_receipt: 'الصورة غير واضحة أو لا تحتوي على فاتورة مقروءة. حاول بصورة أوضح.',
+  unreadable_terms: 'تعذّر قراءة شروط الضمان. اختر صورة أو ملف PDF أوضح للشروط.',
   not_a_receipt: 'لم يُتعرّف على فاتورة شراء في الملف. اختر صورة أو PDF للفاتورة.',
   internal_error: 'حدث خطأ في خدمة التحليل. حاول مجددًا بعد قليل.',
   storage_error: 'تعذّر الوصول إلى مساحة التخزين. حرّر بعض المساحة ثم أعد المحاولة.',
@@ -97,6 +98,11 @@ const arabicErrors = {
 };
 
 const localMessages = new Map([
+  ['Choose a JPG, PNG, WebP photo or a PDF of the terms.', 'اختر صورة JPG أو PNG أو WebP، أو ملف PDF لشروط الضمان.'],
+  ['Could not open the saved attachment.', 'تعذّر فتح المرفق المحفوظ. أعد المحاولة.'],
+  ['This attachment no longer exists.', 'هذا المرفق لم يعد موجودًا على الجهاز.'],
+  ['This item no longer exists.', 'هذا المنتج لم يعد موجودًا في الفاتورة.'],
+  ['The new reading could not match your item photos and terms. Your previous details are still saved.', 'تعذّر مطابقة المنتجات مع صورها وشروطها في القراءة الجديدة. بياناتك السابقة ما زالت محفوظة.'],
   ['Choose a receipt photo or PDF.', 'اختر صورة فاتورة أو ملف PDF.'],
   ['Choose a nonempty file up to 20 MB.', 'اختر ملفًا غير فارغ لا يتجاوز ٢٠ ميغابايت.'],
   ['Choose a file up to 20 MB.', 'اختر ملفًا لا يتجاوز ٢٠ ميغابايت.'],

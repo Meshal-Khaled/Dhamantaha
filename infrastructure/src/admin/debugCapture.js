@@ -30,7 +30,7 @@ export function createDebugCapture({ enabled = false, now = () => Date.now() } =
     },
     /** Records one POST /v1/receipts/analyze: what arrived, what went to the model, what was answered. */
     middleware(req, res, next) {
-      if (!on || req.method !== 'POST' || req.path !== '/v1/receipts/analyze') return next();
+      if (!on || req.method !== 'POST' || !['/v1/receipts/analyze', '/v1/warranty/explain'].includes(req.path)) return next();
       const started = Date.now();
       const path = req.path; // read now: routers rewrite req.path while handling
       const record = { calls: [], upload: null, responseBody: null };

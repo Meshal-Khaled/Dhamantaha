@@ -46,6 +46,16 @@ export function createReceiptWallet(driver) {
       // Always reload the saved original. A failed call leaves the receipt and any previous result intact.
       const { record, file } = await driver.get(id);
       const result = await analyzeReceipt({ ...settings, file, filename: record.name });
+      // Photos and terms belong to an item, even if a new reading changes line order.
+      if (record.assets?.length) {
+        const oldItems = record.analysis?.items ?? [];
+        const key = (item) => item.productIdentifier || item.description;
+        const reordered = oldItems.map((item) => result.body.items.filter((next) => key(next) && key(next) === key(item)));
+        if (oldItems.length !== result.body.items.length || reordered.some((matches) => matches.length !== 1) || new Set(reordered.map(([item]) => item)).size !== oldItems.length) {
+          throw new Error('The new reading could not match your item photos and terms. Your previous details are still saved.');
+        }
+        result.body = { ...result.body, items: reordered.map(([item]) => item) };
+      }
       try {
         const updated = await driver.updateAnalysis(id, result.body);
         return { record: updated, result };
@@ -58,6 +68,15 @@ export function createReceiptWallet(driver) {
     delete: (id) => driver.delete(id),
     open: (id) => driver.open(id),
     saveAnalysis: (id, analysis) => driver.updateAnalysis(id, analysis),
+    async saveAsset(id, index, kind, file) {
+      const mime = receiptMime(file);
+      if (!['photo', 'terms'].includes(kind) || !/^image\/(jpeg|png|webp)$/.test(mime) && !(kind === 'terms' && mime === 'application/pdf')) throw new Error('Choose a JPG, PNG, WebP photo or a PDF of the terms.');
+      if (!file.size || file.size > MAX_LOCAL_BYTES) throw new Error('Choose a nonempty file up to 20 MB.');
+      return driver.saveAsset(id, index, kind, file, mime);
+    },
+    getAsset: (id, assetId) => driver.getAsset(id, assetId),
+    openAsset: (id, assetId) => driver.openAsset(id, assetId),
+    saveExplanation: (id, assetId, explanation) => driver.saveExplanation(id, assetId, explanation),
   };
 }
 
@@ -76,6 +95,15 @@ const nativeDriver = {
   updateAnalysis: (id, analysis) => plugin.updateAnalysis({ id, analysis }),
   delete: (id) => plugin.delete({ id }),
   open: (id) => plugin.open({ id }),
+  async saveAsset(id, index, kind, file, mime) { return plugin.saveAsset({ id, index, kind, name: file.name, mime, data: await asBase64(file) }); },
+  async getAsset(id, assetId) {
+    const asset = await plugin.getAsset({ id, assetId });
+    const response = await fetch(Capacitor.convertFileSrc(asset.uri));
+    if (!response.ok) throw new Error('Could not open the saved attachment.');
+    return { asset, file: new File([await response.blob()], asset.name, { type: asset.mime }) };
+  },
+  saveExplanation: (id, assetId, explanation) => plugin.saveExplanation({ id, assetId, explanation }),
+  openAsset: (id, assetId) => plugin.openAsset({ id, assetId }),
 };
 
 async function contentHash(blob) {
@@ -164,7 +192,51 @@ const browserDriver = {
       };
     });
   },
-  delete(id) { return transaction('readwrite', (receipts, files) => { receipts.delete(id); files.delete(id); }); },
+  delete(id) { return transaction('readwrite', (receipts, files) => {
+    const request = receipts.get(id);
+    request.onsuccess = () => { for (const asset of request.result?.assets ?? []) files.delete(asset.id); receipts.delete(id); files.delete(id); };
+  }); },
+  saveAsset(id, index, kind, file, mime) {
+    return transaction('readwrite', (receipts, files, done, tx) => {
+      const request = receipts.get(id);
+      request.onsuccess = () => {
+        const record = request.result;
+        if (!record?.analysis?.items?.[index]) return tx.abort();
+        const previous = record.assets?.find((asset) => asset.index === index && asset.kind === kind);
+        const asset = { id: crypto.randomUUID(), index, kind, name: file.name, mime, size: file.size };
+        const next = { ...record, assets: [...(record.assets ?? []).filter((entry) => entry.id !== previous?.id), asset] };
+        if (previous) files.delete(previous.id);
+        files.put(file, asset.id); receipts.put(next); done(next);
+      };
+    });
+  },
+  async getAsset(id, assetId) {
+    return transaction('readonly', (receipts, files, done, tx) => {
+      const request = receipts.get(id);
+      request.onsuccess = () => {
+        const asset = request.result?.assets?.find((entry) => entry.id === assetId);
+        if (!asset) return tx.abort();
+        const read = files.get(assetId); read.onsuccess = () => done({ asset, file: read.result });
+      };
+    });
+  },
+  saveExplanation(id, assetId, explanation) {
+    return transaction('readwrite', (receipts, files, done, tx) => {
+      const request = receipts.get(id);
+      request.onsuccess = () => {
+        const record = request.result;
+        if (!record?.assets?.some((asset) => asset.id === assetId && asset.kind === 'terms')) return tx.abort();
+        const next = { ...record, assets: record.assets.map((asset) => asset.id === assetId ? { ...asset, explanation } : asset) };
+        receipts.put(next); done(next);
+      };
+    });
+  },
+  async openAsset(id, assetId) {
+    const { asset, file } = await browserDriver.getAsset(id, assetId);
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a'); link.href = url; link.download = asset.name; link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
   async open(id) {
     const { record, file } = await browserDriver.get(id);
     const url = URL.createObjectURL(new Blob([file], { type: record.mime }));

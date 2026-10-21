@@ -104,6 +104,16 @@ export async function analyzeReceipt({ baseUrl, clientKey, file, filename }, opt
   return result;
 }
 
+export async function explainWarranty({ baseUrl, clientKey, file, product, language }, options) {
+  const form = new FormData();
+  form.append('file', file, file.name ?? 'warranty-terms');
+  form.append('product', String(product ?? '').slice(0, 150));
+  form.append('language', language === 'ar' ? 'ar' : 'en');
+  const result = await send(`${trimBase(baseUrl)}/warranty/explain`, { method: 'POST', body: form, headers: headersFor(clientKey) }, options);
+  if (!result.ok || !result.body?.coverage) throw failure(result);
+  return result;
+}
+
 /** What to tell the user for an error, by code. Falls back to the server's own message. */
 export function describeError(error, arabic = false) {
   if (arabic) return localizeError(error, true);

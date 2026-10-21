@@ -2,6 +2,8 @@
 
 ## Deployment status — 20 October 2026
 
+- 21 October 2026, 14:06 (Asia/Riyadh): deployed item icon hints, optional quoted warranty coverage in receipt payloads, and `POST /v1/warranty/explain` for an item's attached terms. Backup: `../backups/pre-warranty-coverage-20261021-105858`; rollback image: `dhamantaha-infrastructure:pre-warranty-coverage-20261021-105858`. All 135 backend tests passed inside the new image before the first restart; a final quotation-boundary refinement passed all five focused coverage tests before a second restart. The public health and OpenAPI endpoints return 200. Live synthetic receipt analysis returned `icon: laptop` plus covered/excluded points with quotes. A synthetic terms PDF sent through the installed phone app returned covered, excluded, and unclear points, which survived reopening. Product photos stay local; only the chosen terms document is sent by Explain coverage. Existing bounded, admin-only in-memory payload capture also supports this endpoint.
+
 - Installed at `/home/ubuntu/dhamantaha/infrastructure` on The Ring.
 - Container: `dhamantaha-infrastructure-1`; Compose project: `dhamantaha`.
 - Private dashboard: `/dashboard/api-settings` and `/dashboard/monitoring`. The root redirects to API settings. Sign in with the existing Ring admin key; sessions use an HttpOnly SameSite cookie.
