@@ -29,6 +29,8 @@ describe('private dashboard', () => {
       assert.ok(response.url.endsWith('/dashboard/api-settings'));
       assert.match(await response.text(), /API settings/);
       assert.equal((await fetch(`${baseUrl}/dashboard/monitoring`)).status, 200);
+      assert.equal((await fetch(`${baseUrl}/dashboard/monitoring`)).url, `${baseUrl}/dashboard/api-monitoring`);
+      assert.equal((await fetch(`${baseUrl}/dashboard/users`)).status, 200);
       const api = await (await fetch(`${baseUrl}/v1`)).json();
       assert.equal(api.endpoints.analyzeReceipt, '/v1/receipts/analyze');
       assert.equal((await fetch(`${baseUrl}/v1/health`)).status, 200);
@@ -39,6 +41,7 @@ describe('private dashboard', () => {
     await withServer({ env: { ADMIN_KEY: ADMIN, CLIENT_KEYS: `android:${ADMIN}` } }, async ({ baseUrl }) => {
       assert.equal((await admin(baseUrl, '/settings')).status, 401);
       assert.equal((await admin(baseUrl, '/monitoring')).status, 401);
+      assert.equal((await admin(baseUrl, '/users')).status, 401);
       const rejected = await fetch(`${baseUrl}/admin/api/settings`, { headers: { 'X-Client-Key': ADMIN } });
       assert.equal(rejected.status, 401);
       assert.equal((await admin(baseUrl, '/login', { method: 'POST', body: { key: 'wrong-key' } })).status, 401);
@@ -233,5 +236,47 @@ describe('provider settings runtime', () => {
     assert.equal(data.totalRequests, 80);
     assert.equal(data.recent.length, 60);
     assert.doesNotMatch(JSON.stringify(data), new RegExp(SECRET));
+  });
+
+  it('counts receipt reopens and original downloads per anonymous install', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dhamantaha-usage-'));
+    const report = (baseUrl, body, headers = {}) => fetch(`${baseUrl}/v1/usage`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body) });
+    const env = { ADMIN_KEY: ADMIN, ADMIN_STATE_DIRECTORY: dir, CLIENT_KEYS: 'android:android-usage-test-key' };
+    const key = { 'X-Client-Key': 'android-usage-test-key' };
+    try {
+      await withServer({ env }, async ({ baseUrl }) => {
+        const cookie = await login(baseUrl);
+        const empty = await (await admin(baseUrl, '/users', { cookie })).json();
+        assert.deepEqual([empty.refetches, empty.downloads, empty.users], [0, 0, 0]);
+        assert.equal((await report(baseUrl, { deviceId: 'a'.repeat(32), events: { receipt_refetch: 1 } })).status, 401);
+        assert.equal((await report(baseUrl, { deviceId: 'a'.repeat(32), events: { receipt_refetch: 2, original_download: 1 } }, key)).status, 202);
+        assert.equal((await report(baseUrl, { deviceId: 'a'.repeat(32), events: { receipt_refetch: 1 } }, key)).status, 202);
+        assert.equal((await report(baseUrl, { deviceId: 'b'.repeat(32), events: { original_download: 3 } }, key)).status, 202);
+        for (const bad of [{}, { deviceId: 'short', events: { receipt_refetch: 1 } }, { deviceId: 'c'.repeat(32), events: {} },
+          { deviceId: 'c'.repeat(32), events: { receipt_refetch: 0 } }, { deviceId: 'c'.repeat(32), events: { receipt_refetch: 1.5 } },
+          { deviceId: 'c'.repeat(32), events: { receipt_refetch: 1000 } }, { deviceId: 'c'.repeat(32), events: { receipt_name: 1 } }]) {
+          const rejected = await report(baseUrl, bad, key);
+          assert.equal(rejected.status, 400, JSON.stringify(bad));
+          assert.equal((await rejected.json()).error.code, 'invalid_usage_report');
+        }
+        assert.equal((await fetch(`${baseUrl}/v1/usage`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...key }, body: '{nope' })).status, 400);
+        const usage = await (await admin(baseUrl, '/users', { cookie })).json();
+        assert.deepEqual([usage.refetches, usage.downloads, usage.users, usage.activeLast24h], [3, 4, 2, 2]);
+        const first = usage.recentUsers.find((user) => user.user === 'aaaaaaaa');
+        assert.deepEqual([first.refetches, first.downloads], [3, 1]);
+        assert.doesNotMatch(JSON.stringify(usage), /aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/);
+        // Usage reports are not analysis requests.
+        assert.equal((await (await admin(baseUrl, '/monitoring', { cookie })).json()).totalRequests, 0);
+        assert.equal((await (await admin(baseUrl, '/monitoring', { cookie })).json()).usage, undefined);
+      });
+      // Closing the server does not flush; the counters were written by the debounce or on stop.
+      const { createUsage } = await import('../src/admin/usage.js');
+      const usage = createUsage({ directory: dir });
+      usage.record('d'.repeat(32), { receipt_refetch: 1 });
+      await usage.flush();
+      const restored = createUsage({ directory: dir }).snapshot();
+      assert.equal(restored.refetches, 1);
+      assert.equal(restored.users, 1);
+    } finally { await rm(dir, { recursive: true, force: true }); }
   });
 });

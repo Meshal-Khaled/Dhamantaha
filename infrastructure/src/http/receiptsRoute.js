@@ -10,7 +10,7 @@ import { analysisRateLimit, clientKeyCheck, concurrencyLimit } from './protectio
 import { receiptUpload } from './upload.js';
 
 /** POST /v1/receipts/analyze. Each check runs before the upload is read into memory. */
-export function receiptsRouter({ config, provider, budget, logger }) {
+export function receiptsRouter({ config, provider, budget, logger, usage }) {
   const router = Router();
   const withRequestDeadline = (p) => withDeadline(p, config.gemini.totalTimeoutMs);
 
@@ -29,6 +29,7 @@ export function receiptsRouter({ config, provider, budget, logger }) {
     receiptUpload(config.limits),
     async (req, res) => {
       if (!req.file) throw new AppError(400, 'no_file', 'Attach the receipt in the "file" field.');
+      if (purpose === 'receipt') usage?.recordAnalysis(req.get('X-Install-Id'));
       // Hold the only reference to the upload in this scope so it is released
       // when the request ends, whatever the outcome.
       const { buffer } = req.file;
@@ -45,7 +46,7 @@ export function receiptsRouter({ config, provider, budget, logger }) {
 
       try {
         const result = await analyzeReceipt(buffer, {
-          provider: withRequestDeadline(capture ? recordingProvider(provider, capture.calls, { model: config.gemini.model }) : provider),
+          provider: withRequestDeadline(capture ? recordingProvider(provider, capture.calls, { model: config.providerModel ?? config.gemini.model }) : provider),
           limits: config.limits,
           today: todayIn(config.walletTimeZone),
           signal: controller.signal,

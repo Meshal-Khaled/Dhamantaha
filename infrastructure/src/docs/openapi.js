@@ -37,6 +37,15 @@ export function buildOpenApi(config) {
           responses: { 200: json(ref('CoverageResponse'), 'Covered, excluded, and unclear points with exact source quotes.'), 401: error('Unauthorized client.'), 413: error('File too large.'), 422: error('Unreadable terms or invalid file.'), 429: error('Rate limited.'), 502: error('Analysis unavailable.'), 503: error('Budget reached or busy.'), 504: error('Analysis timeout.') },
         },
       },
+      '/v1/usage': {
+        post: {
+          summary: 'Report app usage counts',
+          description: 'The app reports visits (`app_visit`), saved receipt reopens (`receipt_refetch`) and original-file opens/downloads (`original_download`). Counters only, tied to a random install ID, shown on the Users dashboard. Receipt analysis counts are recorded by the server instead.',
+          ...(keyRequired ? { security: [{ clientKey: [] }] } : {}),
+          requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['deviceId', 'events'], properties: { deviceId: { type: 'string', pattern: '^[A-Za-z0-9-]{16,64}$' }, events: { type: 'object', additionalProperties: false, minProperties: 1, properties: { app_visit: { type: 'integer', minimum: 1, maximum: 100 }, receipt_refetch: { type: 'integer', minimum: 1, maximum: 100 }, original_download: { type: 'integer', minimum: 1, maximum: 100 } } } } } } } },
+          responses: { 202: json({ type: 'object', properties: { ok: { type: 'boolean' } } }, 'Counts recorded.'), 400: error('Invalid report.'), 401: error('Unauthorized client.'), 429: error('Rate limited.') },
+        },
+      },
       '/health': {
         get: {
           summary: 'Check that the service is running',
@@ -47,6 +56,7 @@ export function buildOpenApi(config) {
       '/v1/receipts/analyze': {
         post: {
           summary: 'Analyze a receipt',
+          parameters: [{ name: 'X-Install-Id', in: 'header', required: false, description: 'Anonymous app install ID for per-user analysis counting. Without it, the request contributes to the unassigned total.', schema: { type: 'string', pattern: '^[A-Za-z0-9-]{16,64}$' } }],
           description: `Upload one receipt photo or PDF. Accepted: ${ACCEPTED_TYPES.join(', ')}. The type is detected from the file contents.`,
           ...(keyRequired ? { security: [{ clientKey: [] }] } : {}),
           requestBody: {

@@ -1,5 +1,6 @@
 // Talks to The Ring. Pure functions, no React, so they run under `node --test`.
 import { localizeError } from './format.js';
+import { deviceId } from './usage.js';
 
 export const DEFAULT_API_BASE = 'https://dhamantaha.arc-homlab.com/v1';
 const REQUEST_TIMEOUT_MS = 95_000; // Cloudflare cuts requests at 100 s.
@@ -94,10 +95,11 @@ export function checkFileAgainstLimits(file, limits) {
 export async function analyzeReceipt({ baseUrl, clientKey, file, filename }, options) {
   const form = new FormData();
   form.append('file', file, filename ?? file.name ?? 'receipt');
+  const installId = deviceId(options?.storage);
   // No Content-Type header: fetch adds the multipart boundary itself.
   const result = await send(
     `${trimBase(baseUrl)}/receipts/analyze`,
-    { method: 'POST', body: form, headers: headersFor(clientKey) },
+    { method: 'POST', body: form, headers: { ...headersFor(clientKey), ...(installId ? { 'X-Install-Id': installId } : {}) } },
     options,
   );
   if (!result.ok || !result.body?.receipt || !Array.isArray(result.body.items)) throw failure(result);

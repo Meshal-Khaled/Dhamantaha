@@ -151,7 +151,7 @@ export const ErrorResponse = z.object({
 
 export const HealthResponse = z.object({
   status: z.literal('ok'),
-  provider: z.enum(['gemini', 'mock']).nullable(),
+  provider: z.string().nullable(),
   clientKeyRequired: z.boolean(),
   limits: z.object({
     acceptedTypes: z.array(z.enum(ACCEPTED_TYPES)),

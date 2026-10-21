@@ -9,3 +9,6 @@ node_modules/
 test-receipts/
 
 *.log
+
+# Local build leftovers from before the Android source moved to app/.
+/android-app/
