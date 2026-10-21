@@ -307,3 +307,9 @@ Tool: Codex — Developer: Meshal Khaled
 Verified 154 local backend tests, 155 release-image test entries (including the helper file), 81 website tests, production builds, deployment smoke checks, QR-only visibility, authenticated live names/teams and user-container rows. Added an explicit two-stage synthetic load runner, qr-load-runner.mjs. Registered 25 TEST QR25 visitors across five TEST teams before starting the live public burst. Result: 25 attempted, 24 recorded at the backend, 11 successful Gemini analyses, 13 provider quota failures and one client transport failure without a backend record; 12 busy retries, 36 backend HTTP attempts, 23.369 s total elapsed, 7.648 s median completion and 17.760 s p95. Successful key slots were 3/5/3. This burst failed capacity verification for tomorrow; provider project quotas or pacing remain unresolved. No second burst was run. Test metadata remains visibly marked TEST for review. Saved the full client report and live screenshots in the chat artifacts directory. Source is consolidated on main only, with all previous branch history retained and the other worktree's uncommitted edits preserved. QR scope backup: backups/pre-qr-scope-20261021-163405.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-21 20:06 (Asia/Riyadh)
+
+**Update:** Published the QR scope correction, named logs and 25-user test results on main. The first push was safely refused because Mazen's concurrent mazenplanv1 update had reached main; merged that plan update locally and pushed normally, preserving both contributors' work. The old Frontend-UI ref had also reappeared at its unchanged, already-merged 1b01c23 commit; verified ancestry and removed it with an exact-commit lease to retain the requested main-only branch layout. No application code or deployment changed in this reconciliation.
+
+Tool: Codex — Developer: Meshal Khaled
