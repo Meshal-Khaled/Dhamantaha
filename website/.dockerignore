@@ -1,0 +1,14 @@
+# Only dist/ and nginx/ go into the image.
+node_modules
+src
+test
+scripts
+public
+index.html
+package.json
+package-lock.json
+vite.config.js
+README.md
+.env
+.env.*
+*.log

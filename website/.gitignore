@@ -1,0 +1,9 @@
+node_modules/
+dist/
+
+# A real access key stays out of Git. The website reads none at build time, but keep the habit.
+.env
+.env.*
+!.env.example
+
+*.log
