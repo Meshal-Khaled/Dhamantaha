@@ -39,6 +39,7 @@ function check() {
     ['health check answers', `curl -fsS ${url}/healthz`, (out) => out.trim() === 'ok'],
     ['home page is the app', `curl -fsS ${url}/`, (out) => out.includes('<div id="root">')],
     ['a page address falls back to the app', `curl -fsS ${url}/receipts/example`, (out) => out.includes('<div id="root">')],
+    ['the teams page and the QR page are served', `curl -fsS ${url}/teams && curl -fsS ${url}/qr`, (out) => out.split('<div id="root">').length === 3],
     ['a missing file is a real 404', `curl -s -o /dev/null -w '%{http_code}' ${url}/assets/missing.js`, (out) => out.trim() === '404'],
     ['the API answers through /v1', `curl -fsS ${url}/v1/health`, (out) => out.includes('"status":"ok"')],
     ['the admin dashboard is not reachable through the website', `curl -fsS ${url}/dashboard/api-settings`, (out) => out.includes('<div id="root">') && !out.toLowerCase().includes('monitoring')],

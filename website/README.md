@@ -14,6 +14,20 @@ This folder is self-contained and separate from the Android app in [`../app/`](.
 | `/add` | Add a receipt: drop a file, choose one, or take a photo on a phone. Save only, or save and analyze. |
 | `/settings` | Theme, language, price display, the access key, storage use, delete everything. |
 | `/how-it-works`, `/privacy`, `/help` | Information pages. |
+| `/teams` | **Presentation page** for the other teams: team details, receipts upload, send. Own slim layout, not linked from the site, not indexed. See below. |
+| `/qr` | The QR code for `/teams`, to show, print or download (SVG, PNG). It always leads to the `/teams` page of the public website, however `/qr` itself is opened. |
+
+## The presentation page (`/teams`) and its QR code
+
+The page the other teams reach by scanning a QR code. It collects the team name, the person's name, an optional email or phone, 1 to 10 receipts (photos or PDFs, 10 MB each; a phone offers its camera) and a note, with a consent checkbox, inline errors in English and Arabic, and a confirmation screen. **Nothing is sent yet:** `REQUESTS_LIVE` in `src/lib/team-request.js` is `false`, so the page shows a "Design preview" notice and `sendRequest()` only waits a moment. Handling requests (where they go, what The Ring does with them) is added in `sendRequest()` once the plan is agreed, and the flag is turned on.
+
+The QR code is the website's address plus `/teams` (today `https://web-dhamantaha.arc-homlab.com/teams`: the website runs on port 3101 of The Ring, the tunnel makes that port public, and `/teams` is one page of it). `/qr` shows it large, with SVG and PNG downloads and a print view.
+
+- Which website it points at: the address `/qr` is opened on, when that is public; otherwise (the dev server, an SSH forward to port 3101) `PUBLIC_SITE` in `src/lib/site.js`. So a code made on a laptop still works from a phone.
+- **Change the address** under the code (or `?url=`) overrides that, for example when the hostname changes. A bare name such as `web-dhamantaha.arc-homlab.com` is enough: `https://` and `/teams` are added. A warning appears if the address is one a phone cannot reach.
+- **For a presentation:** download the PNG (slides) or SVG (print, posters) from `/qr`, or run `npm run qr` here: it needs no browser or internet and writes `qr/dhamantaha-teams-qr.png` and `.svg` for the same address, after checking that a QR decoder reads the picture back. `npm run qr -- other-name.example.org` makes one for another site, `--size 1600` a bigger PNG. The `qr/` folder is not committed, because it holds one address.
+- If the public hostname changes for good, update `PUBLIC_SITE`, redeploy, and make the code again: a printed code keeps the old name.
+- `test/qr.test.js` decodes generated codes with an independent decoder to prove they scan, and checks that the code leads to a page that exists.
 
 ## Run it
 
@@ -51,7 +65,7 @@ Browser storage can be cleared by the visitor or, on low storage, by the browser
 npm run deploy:ring
 ```
 
-This builds the site, copies it to `~/dhamantaha/website` on The Ring over `ssh ring`, builds the container in its own Compose project (`dhamantaha-website`, separate from the API's `dhamantaha`), starts it, waits for it to be healthy and runs nine checks. `--skip-build` reuses `dist/`; `--check` only runs the checks. The previous image stays tagged `dhamantaha-website:previous`; to roll back, retag it as `latest` and run `docker compose -p dhamantaha-website -f compose.ring.yaml up -d` on The Ring.
+This builds the site, copies it to `~/dhamantaha/website` on The Ring over `ssh ring`, builds the container in its own Compose project (`dhamantaha-website`, separate from the API's `dhamantaha`), starts it, waits for it to be healthy and runs ten checks. `--skip-build` reuses `dist/`; `--check` only runs the checks. The previous image stays tagged `dhamantaha-website:previous`; to roll back, retag it as `latest` and run `docker compose -p dhamantaha-website -f compose.ring.yaml up -d` on The Ring.
 
 The container is nginx (unprivileged, read-only filesystem, no capabilities, 128 MB) published on **`127.0.0.1:3101`** only. To make it public, add a Cloudflare Tunnel hostname (Zero Trust → Networks → Tunnels → the Ring tunnel → Public hostname) with **Service `HTTP` · `localhost:3101`**. Use a hostname other than `dhamantaha.arc-homlab.com`, which already points at the API, and keep it **one level** under `arc-homlab.com` (for example `dhamantaha-web.arc-homlab.com`): Cloudflare's free certificate covers `arc-homlab.com` and `*.arc-homlab.com` only, so a two-level name such as `web.dhamantaha.arc-homlab.com` has no certificate and every HTTPS request fails during the TLS handshake. The tunnel is managed in the Cloudflare dashboard (cloudflared on The Ring runs from a token), so the hostname is added there, not in a file on The Ring. Until then, preview it from this computer:
 
