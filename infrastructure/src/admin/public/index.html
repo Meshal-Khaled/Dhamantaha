@@ -19,7 +19,7 @@
     <aside class="sidebar">
       <a class="brand" href="/"><span class="brand-mark">ض</span><span>Dhamantaha<small>CONTROL ROOM</small></span></a>
       <div class="nav-label">WORKSPACE</div>
-      <nav aria-label="Dashboard"><a id="settings-nav" class="nav-link" href="/dashboard/api-settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v8m-4-4h8M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"/></svg>API settings<span>01</span></a><a id="monitoring-nav" class="nav-link" href="/dashboard/api-monitoring"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4l3-8 4 14 3-6h4"/></svg>API monitoring<span>02</span></a><a id="users-nav" class="nav-link" href="/dashboard/users"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>Users<span>03</span></a></nav>
+      <nav aria-label="Dashboard"><a id="settings-nav" class="nav-link" href="/dashboard/api-settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8v8m-4-4h8M6 3h12a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3Z"/></svg>API settings<span>01</span></a><a id="monitoring-nav" class="nav-link" href="/dashboard/api-monitoring"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h4l3-8 4 14 3-6h4"/></svg>API monitoring<span>02</span></a><a id="users-nav" class="nav-link" href="/dashboard/users"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>Users<span>03</span></a><a id="logs-nav" class="nav-link" href="/dashboard/logs"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4ZM8 8h8M8 12h8M8 16h4"/></svg>Container logs<span>04</span></a></nav>
       <div class="sidebar-bottom"><div class="ring-card"><span class="ring-symbol">◎</span><div><strong>The Ring</strong><small>Cloud instance · Port 3100</small></div></div><button id="logout" class="logout" type="button">Sign out <span aria-hidden="true">↗</span></button><p class="sidebar-foot">A little less to worry about.</p></div>
     </aside>
     <div class="workspace">
@@ -84,7 +84,13 @@
           <p id="users-persistence" class="monitor-footnote"></p>
           <p class="monitor-footnote">Refetching means reopening a receipt saved on the device. Visits start on first use or after 30 minutes away; short returns from the camera or document picker stay in the same visit. Receipt analyses count once per submitted upload, regardless of provider retries, and exclude warranty explanations. Visits and per-user analysis attribution start with the updated app; earlier values are not reconstructed. Only counts and a random install ID are recorded.</p>
         </section>
-        <footer class="main-footer"><span>Dhamantaha <span lang="ar">· ضمنتها</span></span><span>Built to keep your warranties close.</span></footer>
+        <section id="logs-view" hidden>
+<div class="page-heading"><div><span class="eyebrow">THE RING · OPERATIONS</span><h1>Containers &amp; logs</h1><p class="muted">Service health, assigned Gemini key slots and recent backend events.</p></div><button id="refresh-containers" class="button secondary" type="button">↻ Refresh</button></div>
+<div class="monitor-status"><span id="containers-status" class="badge">Checking containers</span><span id="containers-updated" class="muted"></span></div>
+<div id="container-cards" class="container-grid"></div>
+<section class="card requests-card"><div class="section-title"><div><h2>Recent backend logs</h2><p class="muted">Latest 60 log lines, filtered to operational events. Key values and receipt content are excluded.</p></div></div><pre id="container-events" class="container-events" aria-live="polite">Loading…</pre></section>
+<p class="monitor-footnote">The API shares its Gemini slots across requests; the website forwards analysis to the API. Other Ring services show detected key mounts, which do not prove which key a request used. Raw logs from other services are not displayed. Status refreshes every 15 seconds; stale data is marked.</p>
+</section><footer class="main-footer"><span>Dhamantaha <span lang="ar">· ضمنتها</span></span><span>Built to keep your warranties close.</span></footer>
       </main>
     </div>
   </div>

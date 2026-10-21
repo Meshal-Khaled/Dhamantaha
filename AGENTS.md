@@ -21,6 +21,6 @@ The Action only runs for branches that contain `.github/workflows/sync-docs.yml`
 
 ## Git
 
-- Pull `main` into your branch regularly (`git pull origin main`). `.gitattributes` keeps both sides' log entries, so `UPDATES.md` does not conflict.
-- Merge with git on your own machine. GitHub's "Merge" button does not apply that rule, so a conflict in `UPDATES.md` there has to be fixed by hand.
-- Code is not pushed to `main` directly. It reaches `main` when the branches are merged. Only the shared docs go to `main` through the script.
+- Work only on `main`, as requested by Meshal on 21 October 2026. Commit and push work there; do not create another branch unless explicitly requested.
+- Pull `main` regularly (`git pull origin main`). `.gitattributes` keeps both sides' added log entries.
+- When consolidating an older branch, merge with git locally before deleting it. Preserve uncommitted changes in other working folders.
