@@ -15,7 +15,7 @@ Make Dhamantaha easy, trustworthy, and pleasant to use as an Android receipt wal
 
 ## 2. Start from the actual project, not an old mock-up
 
-Read `AGENTS.md`, `UPDATES.md`, `Meshal-Plan.md`, `Resource.md`, the root `README.md`, and the two client READMEs before work. The updated frontend baseline is the `Frontend-UI` branch; `main` can have an older folder structure. Check the remote branch, local changes, and unpushed work before changing files.
+Read `AGENTS.md`, `UPDATES.md`, `Meshal-Plan.md`, `Resource.md`, the root `README.md`, and the two client READMEs before work. The approved baseline is `main`. Follow the current main-only rules in `AGENTS.md`; `Frontend-UI` is historical. Check the remote branch, local changes, and unpushed work before changing files.
 
 | Area | Working source to inspect | Purpose |
 | --- | --- | --- |
@@ -205,7 +205,7 @@ These are **review tasks and proposed improvements**, not confirmed bugs. For ev
 
 ## 10. Build, testing and safe rollout
 
-**Working agreement:** develop frontend code on a dedicated feature branch based on the newest approved `Frontend-UI` state, not directly on `main`. Commit in small feature-sized changes, request review before merge, and append a real Asia/Riyadh timestamped entry to `UPDATES.md` for each update, following `AGENTS.md`. The shared-doc automation may publish plans and log entries to `main`; application code should reach `main` only through review/merge.
+**Working agreement:** work, commit and push only on `main` unless explicitly requested otherwise. Pull current `main`, preserve teammate work, commit focused changes, and append a real Asia/Riyadh timestamped entry to `UPDATES.md`. Do not create feature branches; current `AGENTS.md` takes precedence over historical branch advice.
 
 ### Android app — from `app/`
 
@@ -264,7 +264,7 @@ npm run dev
 
 ## 12. Open questions to resolve with Meshal before implementation
 
-1. Is the current remote `Frontend-UI` branch the approved baseline, or are newer app/website commits still only on Meshal's machine?
+1. Resolved: `main` is the approved baseline and only working branch. Check remote updates and preserve local teammate work before editing.
 2. Which visual changes are mandatory for the presentation, and which can wait until after core flow testing?
 3. Should Android receive the same filters and sorting as the website, or keep the simpler search-first UI?
 4. What reminder offsets and notification experience should be used, and is native notification scheduling allowed in the first release?
@@ -275,7 +275,7 @@ npm run dev
 
 ## 13. Suggested first Codex task
 
-> Read `AGENTS.md`, `UPDATES.md`, `Mazen-Plan.md`, `Meshal-Plan.md`, `Resource.md`, the root README, `app/README.md` and `website/README.md`. Inspect the current `Frontend-UI` code and do a **read-only frontend audit first**. Produce a table of each Android and website screen, what already works, concrete UI issues with evidence, affected source files, priority and test plan. Identify any mismatch between GitHub and the update log. After the audit, implement one agreed P0 improvement on a new feature branch, without touching `main`, deleting saved receipts, or deploying to The Ring. Preserve bilingual and RTL support, run relevant tests, and append a truthful log entry following `AGENTS.md`.
+> Read `AGENTS.md`, `UPDATES.md`, `Mazen-Plan.md`, `Meshal-Plan.md`, `Resource.md`, the root README, `app/README.md` and `website/README.md`. Inspect the current `main` code and do a **read-only frontend audit first**. Produce a table of each Android and website screen, what already works, concrete UI issues with evidence, affected source files, priority and test plan. Identify any mismatch between GitHub and the update log. After the audit, implement one agreed P0 improvement directly on `main`, preserving teammate work and saved receipts, without deploying to The Ring. Preserve bilingual and RTL support, run relevant tests, and append a truthful log entry following `AGENTS.md`.
 
 ## References
 
@@ -284,3 +284,18 @@ npm run dev
 - `Meshal-Plan.md` — backend assumptions and privacy/API boundaries.
 - `Resource.md` — agreed development resources.
 - `app/README.md`, `website/README.md`, `infrastructure/API.md` — implementation guidance and current API contract.
+
+## 14. Focused Android UI sprint
+
+This sprint narrows execution of the broader roadmap above; it does not replace useful future work. The existing root `Mazen-Plan.md` is the plan source, as clarified by Mazen.
+
+### Sprint 1 — Tasks 1 and 2
+
+1. **Home:** provide a real first-use state with Add first receipt and an explanation of local saving and optional analysis. Hide empty dashboard metrics and deadline headings. For saved receipts without upcoming known deadlines, explain that unanalyzed receipts and unknown terms may still need review.
+2. **Receipts:** distinguish Not analyzed from analyzed-but-unknown warranty dates. Show matching versus total receipt counts and the count actually displayed. Preserve search, existing filters/sort, Show More and opening receipts.
+
+Retain Arabic/English, RTL/LTR, light/dark and normal/large text. Scope excludes website, backend, QR, Ring deployment, native storage schema, saved data, credentials and warranty math. No fake sign-out or notification switch. Validate with `npm ci`, `npm test`, `npm run build` from `app/` and append actual results to `UPDATES.md`.
+
+### Next steps — Tasks 3–4 (deferred)
+
+Continue the existing Android roadmap sections C (receipt details/product cards) and D (add receipt/analysis flow) in a subsequent task, after confirming their exact acceptance scope. Neither is implemented in this sprint. Native device verification remains a separate check; do not clear saved data.
