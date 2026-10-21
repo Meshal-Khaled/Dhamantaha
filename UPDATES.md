@@ -321,3 +321,9 @@ Tool: Codex — Developer: Meshal Khaled
 Ran 25 new TEST PACED25 visitors in five groups, five seconds apart. Initial result: 24 successful in 35.042 seconds, no Gemini quota errors, 20 bounded waiting retries, and one test-client connection failure before reaching the backend. Confirmed the missing visitor had no backend record, then retried only that visitor: success in 4.053 seconds. Final server audit confirms 25 distinct successful visitors, exactly 25 provider calls and no provider errors; winning key slots were 9/8/8. The full first-pass report remains intact with an appended recovery entry, so this is not presented as a clean 25/25 first pass. Tested synthetic readable PDFs, not arbitrary photo/token workloads. Reports are in the chat artifacts directory and named activity remains visible on the QR logs page. No keys or provider credentials were exposed.
 
 Tool: Codex — Developer: Meshal Khaled
+
+## 2026-10-21 20:32 (Asia/Riyadh)
+
+**Update:** Corrected the QR logs dashboard's historical waiting label to Retry requested, renamed the table QR request activity and its outcome column Attempt outcome, and explained that each HTTP attempt keeps its own row when a client later retries. Preserved all original failure and retry records without inferring final outcomes from a participant name. Deployed the two static dashboard files through a rebuilt control-panel image; verified the public HTML/JavaScript and healthy app/QR containers. All 14 dashboard tests passed in the Linux release image; the local sandbox blocked loopback connections and a temporary-file rename, so its test run was not counted as a pass. No provider calls or new load tests were made. The earlier paced result remains 24/25 first pass plus one verified targeted connection-failure resubmission, with 25 eventual successes; the older unpaced quota failures remain visible.
+
+Tool: Codex — Developer: Meshal Khaled

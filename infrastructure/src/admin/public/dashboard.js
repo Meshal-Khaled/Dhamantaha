@@ -478,7 +478,8 @@ async function refreshContainers() {
     $('containers-updated').textContent = data.collectedAt ? `Collected ${new Date(data.collectedAt).toLocaleString()} · Every 3s` : data.message;
     $('qr-request-body').replaceChildren(...(data.requests ?? []).slice().reverse().map(request => {
       const row = document.createElement('tr');
-      [request.name || request.user, request.team || '—', request.container, request.state, request.winningKey || request.keys.join(', ') || '—', request.durationMs === undefined ? '…' : `${(request.durationMs / 1000).toFixed(1)}s`, new Date(request.startedAt).toLocaleTimeString()].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); });
+      const outcome = request.state === 'waiting' ? 'Retry requested' : request.state;
+      [request.name || request.user, request.team || '—', request.container, outcome, request.winningKey || request.keys.join(', ') || '—', request.durationMs === undefined ? '…' : `${(request.durationMs / 1000).toFixed(1)}s`, new Date(request.startedAt).toLocaleTimeString()].forEach(value => { const cell = document.createElement('td'); cell.textContent = value; row.append(cell); });
       return row;
     }));
     $('container-cards').replaceChildren(...data.containers.map(c => {
