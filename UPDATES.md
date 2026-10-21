@@ -327,3 +327,10 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Corrected the QR logs dashboard's historical waiting label to Retry requested, renamed the table QR request activity and its outcome column Attempt outcome, and explained that each HTTP attempt keeps its own row when a client later retries. Preserved all original failure and retry records without inferring final outcomes from a participant name. Deployed the two static dashboard files through a rebuilt control-panel image; verified the public HTML/JavaScript and healthy app/QR containers. All 14 dashboard tests passed in the Linux release image; the local sandbox blocked loopback connections and a temporary-file rename, so its test run was not counted as a pass. No provider calls or new load tests were made. The earlier paced result remains 24/25 first pass plus one verified targeted connection-failure resubmission, with 25 eventual successes; the older unpaced quota failures remain visible.
 
 Tool: Codex — Developer: Meshal Khaled
+
+
+## 2026-10-21 23:39 (Asia/Riyadh)
+
+**Update:** Improved Android React wallet UI: Home empty state and deadline hierarchy, receipt status filters and counts, product-code search, newest/deadline/store sorting with incremental display, purchase-summary and product quantity/total sections, readable long names, consistent teal surfaces and controls, and a four-step import guide separating local saving from optional AI analysis. Added failure reassurance while retaining existing storage/API/native behavior. Installed app dependencies with npm ci; all 47 tests and production build passed. Chromium smoke checks passed for empty/populated synthetic wallets, 35-receipt pagination, search, navigation, failed-analysis original preservation, and English/Arabic light/dark large text at 320px/390px without horizontal overflow or runtime errors. Saved reusable cloud install/startup configuration. Native Android device and live AI analysis were not tested. Website and infrastructure unchanged.
+
+Tool: Codex — Developer: repository owner (requested UI improvements)
