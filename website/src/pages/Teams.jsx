@@ -100,7 +100,7 @@ export default function Teams() {
     setPhase('sending');
     setSendFailed(false);
     try {
-      const result = await sendRequest(form, files, { onProgress: (current, total) => setProgress(`${current} / ${total}`) });
+      const result = await sendRequest(form, files, { onProgress: (current, total, waiting) => setProgress(`${current} / ${total}${waiting ? arabic ? ` · انتظار ${waiting} ثانية` : ` · Waiting ${waiting}s` : ''}`) });
       setDone({ preview: Boolean(result.preview), team: form.team.trim(), name: form.name.trim(), count: files.length, results: result.results });
       await refresh();
       setPhase('sent');

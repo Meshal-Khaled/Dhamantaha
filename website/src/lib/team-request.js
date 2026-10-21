@@ -85,11 +85,14 @@ export async function sendRequest(request, files, { fetchImpl = fetch, wallet = 
       id = saved.id;
       const form = new FormData(); form.append('file', file, file.name);
       let body;
+      const queueDeadline = Date.now() + 5 * 60_000;
       for (let attempt = 0; ; attempt++) {
         const response = await fetchImpl('/v1/qr/receipts/analyze', { method: 'POST', headers: { 'X-Install-Id': deviceId }, body: form, signal: AbortSignal.timeout(95_000) });
         body = await response.json();
-        if (!response.ok && body.error?.code === 'server_busy' && attempt < 8) {
-          await waitImpl(5000 + Math.floor(Math.random() * 500));
+        if (!response.ok && body.error?.code === 'server_busy' && attempt < 20 && Date.now() < queueDeadline) {
+          const seconds = Math.max(5, Math.min(60, Number(response.headers?.get('Retry-After')) || 5));
+          onProgress(index + 1, files.length, seconds);
+          await waitImpl(seconds * 1000 + Math.floor(Math.random() * 500));
           continue;
         }
         if (!response.ok) throw new Error(body.error?.message || 'Receipt analysis failed.');

@@ -69,10 +69,10 @@ export function createUsage({ directory = '', now = () => Date.now(), containers
       requests = requests.slice(-100);
       scheduleSave();
     },
-    finishRequest(requestId, { status, durationMs, attempts }) {
+    finishRequest(requestId, { status, durationMs, attempts, waiting = false }) {
       const row = requests.find(entry => entry.requestId === requestId);
       if (!row) return;
-      Object.assign(row, { status, durationMs, state: status >= 200 && status < 300 ? 'success' : 'failed', keys: [...new Set(attempts.map(a => a.key))], winningKey: attempts.find(a => a.ok)?.key ?? null });
+      Object.assign(row, { status, durationMs, state: waiting ? 'waiting' : status >= 200 && status < 300 ? 'success' : 'failed', keys: [...new Set(attempts.map(a => a.key))], winningKey: attempts.find(a => a.ok)?.key ?? null });
       scheduleSave();
     },
     /** One authenticated receipt upload accepted for processing, independent of provider retries. */

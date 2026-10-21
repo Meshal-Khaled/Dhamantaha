@@ -78,3 +78,14 @@ test('QR clients wait for a busy backend without duplicating local originals', a
   assert.equal(saves, 1); assert.equal(attempts, 3); assert.equal(waits, 2);
   assert.equal(result.results[0].analysis.receipt.merchantName, 'Demo');
 });
+
+test('QR clients respect the provider cooldown header before retrying', async () => {
+  let attempts = 0; let waited = 0;
+  const wallet = { save: async () => ({ id: 'saved' }), saveAnalysis: async () => {} };
+  const fetchImpl = async url => url.endsWith('/usage') ? { ok: true } : ++attempts === 1
+    ? { ok: false, headers: new Headers({ 'Retry-After': '60' }), json: async () => ({ error: { code: 'server_busy' } }) }
+    : { ok: true, json: async () => ({ receipt: { merchantName: 'Demo' }, items: [] }) };
+  const result = await sendRequest(good, one, { wallet, fetchImpl, deviceId: 'qr-test-install-1234', waitImpl: async ms => { waited = ms; } });
+  assert.ok(waited >= 60_000 && waited < 60_500);
+  assert.equal(result.results[0].analysis.receipt.merchantName, 'Demo');
+});
