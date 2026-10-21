@@ -58,7 +58,7 @@ export function HomeScreen({ saved, arabic, busy, loading, onNavigate, onOpen })
   const t = translate(arabic);
   const summary = walletSummary(saved);
   if (!loading && saved.length === 0) return <>
-    <h1 className="title">{t('Your warranty wallet', 'محفظة ضماناتك')}</h1>
+    <h1 className="title"><span className="heading-emoji" aria-hidden="true">🧾</span>{t('Your warranty wallet', 'محفظة ضماناتك')}</h1>
     <section className="card empty home-empty"><ReceiptText size={36} aria-hidden="true" />
       <h2>{t('Start with your first receipt', 'ابدأ بفاتورتك الأولى')}</h2>
       <p>{t('Save a photo or PDF on this device. Analyze it when you choose, then review its warranty and return terms. Only known dates can be tracked.', 'احفظ صورة أو ملف PDF على هذا الجهاز. حلّل الفاتورة عندما تختار، ثم راجع شروط الضمان والإرجاع. يمكن متابعة المواعيد المعروفة فقط.')}</p>
@@ -67,7 +67,7 @@ export function HomeScreen({ saved, arabic, busy, loading, onNavigate, onOpen })
     </section>
   </>;
   return <>
-    <div className="page-heading"><div><p className="hello">{t('Welcome back', 'أهلًا بك')}</p><h1 className="title">{t('Your warranty wallet', 'محفظة ضماناتك')}</h1></div><ShieldCheck className="heading-symbol" aria-hidden="true" /></div>
+    <div className="page-heading"><div><p className="hello"><span className="heading-emoji" aria-hidden="true">👋</span>{t('Welcome back', 'أهلًا بك')}</p><h1 className="title">{t('Your warranty wallet', 'محفظة ضماناتك')}</h1></div><ShieldCheck className="heading-symbol" aria-hidden="true" /></div>
     <div className="stats"><div className="stat"><strong>{loading ? '—' : formatNumber(saved.length, arabic)}</strong><span>{t('Receipts', 'فواتير')}</span></div><div className="stat"><strong>{loading ? '—' : formatNumber(summary.active, arabic)}</strong><span>{t('Active warranties', 'ضمانات سارية')}</span></div><div className="stat"><strong>{loading ? '—' : formatNumber(summary.upcoming.length, arabic)}</strong><span>{t('Upcoming deadlines', 'مواعيد قريبة')}</span></div></div>
     <section className="quick-add"><div><strong>{t('Keep your next purchase covered', 'احفظ فاتورتك القادمة')}</strong><p>{t('A photo or PDF is all you need.', 'صورة أو PDF، والباقي علينا.')}</p></div><button className="btn white" disabled={busy} onClick={() => onNavigate('add')}><Plus size={18} aria-hidden="true" />{t('Add receipt', 'إضافة فاتورة')}</button></section>
     <div className="section"><h2>{t('Next deadlines', 'المواعيد القادمة')}</h2><button className="link" disabled={busy} onClick={() => onNavigate('saved')}>{t('All receipts', 'كل الفواتير')}</button></div>

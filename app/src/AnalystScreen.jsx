@@ -6,7 +6,7 @@ export default function AnalystScreen({ saved, arabic, loading, busy, onAdd }) {
   const t = (en, ar) => arabic ? ar : en;
   const summary = spendingSummary(saved);
   return <>
-    <h1 className="title">{t('Analyst', 'تحليل الإنفاق')}</h1>
+    <h1 className="title"><span className="heading-emoji" aria-hidden="true">📊</span>{t('Analyst', 'تحليل الإنفاق')}</h1>
     <p className="desc">{t('Spending recorded in your saved receipts.', 'الإنفاق المسجل في فواتيرك المحفوظة.')}</p>
     <p className="tip">{t('Rolling periods include today, using purchase dates—not the date you saved a receipt. Currencies are shown separately; these are purchases, not net spending after refunds.', 'الفترات المتحركة تشمل اليوم وتعتمد على تاريخ الشراء، لا تاريخ حفظ الفاتورة. تظهر كل عملة منفصلة؛ هذه مبالغ المشتريات وليست صافي الإنفاق بعد الاسترجاع.')}</p>
     {loading ? <p role="status">{t('Loading receipts…', 'جارٍ تحميل الفواتير…')}</p> : <>

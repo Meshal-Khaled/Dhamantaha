@@ -271,9 +271,16 @@ fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
 .spending-card h2 { font-size: var(--text-base); }
 .spending-total { font-size: calc(26px * var(--scale)); font-weight: 700; color: var(--green); overflow-wrap: anywhere; margin-block: 12px; }
 
-.screen-transition { animation: screen-enter 180ms ease-out both; }
-@keyframes screen-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-.nav-icon { transition: background-color 160ms ease, color 160ms ease; }
+.screen-transition { --screen-offset: 12px; animation: screen-enter 240ms cubic-bezier(.2, .7, .2, 1) both; }
+[dir=rtl] .screen-transition { --screen-offset: -12px; }
+.phone { overflow-x: clip; }
+@keyframes screen-enter { from { opacity: 0; transform: translateX(var(--screen-offset)); } to { opacity: 1; transform: translateX(0); } }
+.nav-icon { transition: background-color 180ms ease, color 180ms ease, transform 180ms ease; }
+.nav button.active .nav-icon { transform: translateY(-2px); }
+.btn, .secondary, .icon-button { transition: background-color 160ms ease, transform 120ms ease; }
+.btn:active:not(:disabled), .secondary:active:not(:disabled), .icon-button:active:not(:disabled) { transform: translateY(1px); }
+.heading-emoji { display: inline-block; margin-inline-end: .4em; font-size: .85em; line-height: 1; vertical-align: baseline; }
 .warranty-expired { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px; border-radius: 12px; background: var(--bg); color: var(--bad); font-size: var(--text-sm); }
 .warranty-expired svg { flex: none; }
-@media (prefers-reduced-motion: reduce) { .screen-transition { animation: none; } .nav-icon { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .screen-transition { animation: none; } .nav-icon, .btn, .secondary, .icon-button { transition: none; }
+  .nav button.active .nav-icon, .btn:active:not(:disabled), .secondary:active:not(:disabled), .icon-button:active:not(:disabled) { transform: none; } }

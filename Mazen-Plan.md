@@ -323,3 +323,12 @@ Developer: Mazen Al-Malki. Tool: Codex.
 - This section supersedes older roadmap statements that phone reminders are not yet implemented. No new telemetry, server traffic, schema migration, website/backend change or credential changes.
 
 Validation: `npm ci` succeeded; all **59 app tests passed** with no failures/skips; production web build and Capacitor Android sync passed. Eight language/theme/text-size browser combinations at 320px passed transitions/reduced motion, expired shield-X with no bar in cards/details, and browser notification availability messaging. Native-settings component interactions passed with a simulated adapter; Analyst regression matrix also passed. The Android clean debug build succeeded after provisioning the SDK/JDK and resolving local cache/trust setup. APK signature, bundled latest UI assets and merged permissions were verified (no exact-alarm permission). Actual permission prompts, delivery, reboot restoration and app-lock behavior remain untested on a phone.
+
+## 17. Simple navigation polish and restrained emoji accents
+
+Developer: Mazen Al-Malki. Tool: Codex.
+
+- Refined navigation to a 240 ms fade/slide, mirrored in Arabic RTL. Selected tabs lift subtly and primary/secondary/back controls show restrained press feedback. Reduced-motion preferences disable these movements.
+- Use at most one small decorative emoji per screen: receipt on first-use Home/Add, a greeting on populated Home, and a chart on Analyst. Keep text labels, vector navigation/status icons and the existing layout. Hide decorative emoji from screen-reader names.
+- Clip horizontal transition overflow without adding new UI controls or changing wallet, notification, storage or analysis behavior.
+- Validation: all 59 existing app tests and the production web build passed. Eight Arabic/English × light/dark × normal/large Chromium combinations at 320px passed all five navigation destinations, animation timing/direction, emoji restraint, reduced motion and no horizontal overflow/runtime errors. Refreshed the standalone sample-data HTML. Native APK/device checks were not repeated for this presentation-only change.
