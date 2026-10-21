@@ -11,7 +11,23 @@ A warranty wallet: keep your receipts, have The Ring read them, and count down e
 | [`assets/brand/`](assets/brand/README.md) | The logo and symbol. |
 | [`scripts/`](scripts/docs-sync.mjs) | The tool that shares the team documents between branches. |
 
-The app and the website keep their own receipts (on the phone, and in the browser) and do not sync. `main` combines everything.
+The app and the website keep their own receipts (on the phone, and in the browser) and do not sync. `Frontend-UI` contains the complete project, including the latest app and control-panel features.
+
+## Editing the frontend
+
+Clone the UI branch to get the whole project:
+
+```bash
+git clone --branch Frontend-UI https://github.com/Meshal-Khaled/Dhamantaha.git
+cd Dhamantaha
+```
+
+- Website pages and components: `website/src/pages/`, `website/src/components/`, and `website/src/styles/`.
+- Android app screens and styling: `app/src/WalletLayout.jsx`, `app/src/WalletScreens.jsx`, `app/src/ItemExtras.jsx`, and `app/src/styles.css`.
+- Admin control-panel UI: `infrastructure/src/admin/public/` (API settings, API monitoring, and Users).
+- Original design variants: `design/`. Shared logos and icons: `assets/brand/`; `Dhamantha.png` is the original supplied logo.
+
+The setup commands below install dependencies from the committed lockfiles. Real API keys, client settings, customer receipts, APKs and build output are not part of the handoff. For visual editing, the website runs locally without an analysis key; add a client key in its Settings only when testing real analysis. Push frontend edits to `Frontend-UI`, and append a timestamped entry to `UPDATES.md` as described in `AGENTS.md`.
 
 **Android app**, from `app/`:
 
