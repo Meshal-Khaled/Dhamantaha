@@ -235,3 +235,9 @@ Tool: Codex — Developer: Meshal Khaled
 
 Tool: Claude Code — Developer: Meshal Khaled
 
+## 2026-10-21 16:39 (Asia/Riyadh)
+
+**Update:** Deployed user monitoring to The Ring (`https://dhamantaha.arc-homlab.com`). The Ring copy is not a Git checkout; the 8 files I changed matched the commit before mine exactly (ignoring line endings), so only the changed files plus the two new ones (`src/admin/usage.js`, `src/http/usageRoute.js`) were copied. Before the change, the folder was backed up to `backups/pre-user-usage-20261021-133839` and the running image tagged `dhamantaha-infrastructure:pre-user-usage-20261021-133839` for rollback. The new image was built under `-p dhamantaha` and all 136 tests passed inside it before the container was recreated. Checks: the container is healthy, `/v1/health`, `/openapi.json` (now lists `/v1/usage`) and `/dashboard/monitoring` return 200, and `POST /v1/usage` without a client key returns 401. I did not send a test report, so the live counters are 0 and nothing fake is in the stats. Counting starts once the updated app is installed on the phone; that APK is not rebuilt or installed yet. `usage.json` will appear in the Ring state directory after the first report. Committed on branch `claude/user-monitoring`; not pushed.
+
+Tool: Claude Code — Developer: Meshal Khaled
+
