@@ -25,6 +25,7 @@ The QR code is the website's address plus `/teams` (today `https://web-dhamantah
 
 - Which website it points at: the address `/qr` is opened on, when that is public; otherwise (the dev server, an SSH forward to port 3101) `PUBLIC_SITE` in `src/lib/site.js`. So a code made on a laptop still works from a phone.
 - **Change the address** under the code (or `?url=`) overrides that, for example when the hostname changes. A bare name such as `web-dhamantaha.arc-homlab.com` is enough: `https://` and `/teams` are added. A warning appears if the address is one a phone cannot reach.
+- **For a presentation:** download the PNG (slides) or SVG (print, posters) from `/qr`, or run `npm run qr` here: it needs no browser or internet and writes `qr/dhamantaha-teams-qr.png` and `.svg` for the same address, after checking that a QR decoder reads the picture back. `npm run qr -- other-name.example.org` makes one for another site, `--size 1600` a bigger PNG. The `qr/` folder is not committed, because it holds one address.
 - If the public hostname changes for good, update `PUBLIC_SITE`, redeploy, and make the code again: a printed code keeps the old name.
 - `test/qr.test.js` decodes generated codes with an independent decoder to prove they scan, and checks that the code leads to a page that exists.
 

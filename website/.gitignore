@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# Pictures made by `npm run qr` for a presentation. They hold one address, so make them again when it changes.
+qr/
+
 # A real access key stays out of Git. The website reads none at build time, but keep the habit.
 .env
 .env.*
