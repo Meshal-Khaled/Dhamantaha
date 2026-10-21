@@ -14,6 +14,14 @@ This folder is self-contained and separate from the Android app in [`../app/`](.
 | `/add` | Add a receipt: drop a file, choose one, or take a photo on a phone. Save only, or save and analyze. |
 | `/settings` | Theme, language, price display, the access key, storage use, delete everything. |
 | `/how-it-works`, `/privacy`, `/help` | Information pages. |
+| `/teams` | **Presentation page** for the other teams: team details, receipts upload, send. Own slim layout, not linked from the site, not indexed. See below. |
+| `/qr` | The QR code for `/teams`, to show, print or download (SVG, PNG). Open it on the public address, or add `?url=https://<public-address>/teams`. |
+
+## The presentation page (`/teams`) and its QR code
+
+The page the other teams reach by scanning a QR code. It collects the team name, the person's name, an optional email or phone, 1 to 10 receipts (photos or PDFs, 10 MB each; a phone offers its camera) and a note, with a consent checkbox, inline errors in English and Arabic, and a confirmation screen. **Nothing is sent yet:** `REQUESTS_LIVE` in `src/lib/team-request.js` is `false`, so the page shows a "Design preview" notice and `sendRequest()` only waits a moment. Handling requests (where they go, what The Ring does with them) is added in `sendRequest()` once the plan is agreed, and the flag is turned on.
+
+For the QR code open `/qr` on the real public address, then download the SVG or PNG for the slides or print the page. `test/qr.test.js` decodes generated codes with an independent decoder to prove they scan.
 
 ## Run it
 

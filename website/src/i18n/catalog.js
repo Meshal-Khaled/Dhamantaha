@@ -3,8 +3,9 @@ import { home } from './messages/home.js';
 import { receipts } from './messages/receipts.js';
 import { settings } from './messages/settings.js';
 import { info } from './messages/info.js';
+import { teams } from './messages/teams.js';
 
-const parts = [common, home, receipts, settings, info];
+const parts = [common, home, receipts, settings, info, teams];
 
 /** Every message, by language. test/i18n.test.js keeps both languages complete. */
 export const catalogs = {
