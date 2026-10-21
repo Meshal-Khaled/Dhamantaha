@@ -1,0 +1,92 @@
+/* Design tokens: every color, size and shadow the site uses. The dark theme only overrides these. */
+:root {
+  color-scheme: light;
+  --font: 'IBM Plex Sans Arabic', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+
+  --brand: #0f766e;
+  --brand-strong: #0b5f58;
+  --brand-soft: #dff1ec;
+  --brand-faint: #effaf6;
+  --on-brand: #ffffff;
+  --focus-ring: rgb(15 118 110 / 55%);
+
+  --ink: #13201d;
+  --ink-soft: #435c56;
+  --ink-faint: #5b726b;
+
+  --bg: #f6faf8;
+  --surface: #ffffff;
+  --surface-alt: #edf5f1;
+  --line: #dbe7e2;
+  --line-strong: #bfd3cb;
+
+  --ok: #0f7a4f;
+  --ok-soft: #dcf3e6;
+  --warn: #8f5405;
+  --warn-soft: #fbecd0;
+  --warn-bar: #e08a0b;
+  --bad: #b42318;
+  --bad-soft: #fce5e2;
+  --on-bad: #ffffff;
+  --mute: #566d66;
+  --mute-soft: #e6eeea;
+
+  --footer-bg: #0a2925;
+  --footer-ink: #b9d3cc;
+  --footer-strong: #ffffff;
+  --footer-line: #1d433d;
+  --band-bg: linear-gradient(135deg, #0f766e 0%, #0b5f58 100%);
+  --on-band: #ffffff;
+
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 1px 2px rgb(16 40 35 / 6%), 0 1px 1px rgb(16 40 35 / 4%);
+  --shadow: 0 10px 30px rgb(16 40 35 / 8%), 0 2px 6px rgb(16 40 35 / 5%);
+  --shadow-lg: 0 28px 70px rgb(16 40 35 / 14%), 0 6px 18px rgb(16 40 35 / 8%);
+
+  --container: 1180px;
+  --header-h: 68px;
+  --gutter: clamp(16px, 4vw, 32px);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --brand: #3fd0b8;
+  --brand-strong: #86e6d6;
+  --brand-soft: #173a34;
+  --brand-faint: #112a26;
+  --on-brand: #04201b;
+  --focus-ring: rgb(63 208 184 / 65%);
+
+  --ink: #e8f3ef;
+  --ink-soft: #b3c9c1;
+  --ink-faint: #8ba59c;
+
+  --bg: #0c1a17;
+  --surface: #13241f;
+  --surface-alt: #0f201c;
+  --line: #25403a;
+  --line-strong: #36564d;
+
+  --ok: #4ade80;
+  --ok-soft: #123223;
+  --warn: #fbbf4a;
+  --warn-soft: #3a2b0c;
+  --warn-bar: #f59e0b;
+  --bad: #ff8f84;
+  --bad-soft: #3b1815;
+  --on-bad: #2a0907;
+  --mute: #9db4ac;
+  --mute-soft: #1d332e;
+
+  --footer-bg: #081a17;
+  --footer-ink: #a3beb6;
+  --footer-line: #19332e;
+  --band-bg: linear-gradient(135deg, #115e57 0%, #0b4741 100%);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow: 0 10px 30px rgb(0 0 0 / 35%), 0 2px 6px rgb(0 0 0 / 25%);
+  --shadow-lg: 0 28px 70px rgb(0 0 0 / 50%), 0 6px 18px rgb(0 0 0 / 30%);
+}
