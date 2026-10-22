@@ -114,6 +114,25 @@ function readAdminKey(env) {
   }
 }
 
+/**
+ * The private link between the API and the QR backend: the QR backend's
+ * internal address and a shared token of at least 32 characters.
+ */
+function readQrLink(env) {
+  const url = env.QR_INTERNAL_URL?.trim() || '';
+  let token = env.QR_INTERNAL_TOKEN?.trim() || '';
+  if (!token && env.QR_INTERNAL_TOKEN_FILE?.trim()) {
+    try {
+      token = readFileSync(env.QR_INTERNAL_TOKEN_FILE.trim(), 'utf8').trim();
+    } catch {
+      throw new Error('QR_INTERNAL_TOKEN_FILE must point to a readable token file.');
+    }
+  }
+  if (token && token.length < 32) throw new Error('QR_INTERNAL_TOKEN must be at least 32 characters.');
+  if (url && !/^https?:\/\/[^\s/]+(:\d+)?\/?$/.test(url)) throw new Error('QR_INTERNAL_URL must look like http://qr:3100.');
+  return { url, token };
+}
+
 export function loadConfig(env = process.env) {
   const maxImageBytes = readInt(env, 'MAX_IMAGE_BYTES', 20 * MB, { max: 50 * MB });
   const maxPdfBytes = readInt(env, 'MAX_PDF_BYTES', 10 * MB, { max: 50 * MB });
@@ -134,6 +153,7 @@ export function loadConfig(env = process.env) {
     },
     logLevel: readChoice(env, 'LOG_LEVEL', LOG_LEVELS, 'info'),
     walletTimeZone: readTimeZone(env),
+    qrLink: readQrLink(env),
     analysisProvider: readChoice(env, 'ANALYSIS_PROVIDER', PROVIDERS, 'gemini'),
     gemini: {
       apiKey: readGeminiKey(env),

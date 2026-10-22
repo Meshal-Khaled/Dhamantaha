@@ -23,7 +23,7 @@ if (config.host !== '127.0.0.1' && config.clientKeys.length === 0) {
   logger.warn({ event: 'exposed_without_client_keys', host: config.host });
 }
 
-const usage = createUsage({ directory: config.admin.stateDirectory });
+const usage = createUsage({ directory: config.admin.stateDirectory, timeZone: config.walletTimeZone });
 const app = createApp({ config, runtime, logger, budget, usage });
 const server = app.listen(config.port, config.host, () => {
   logger.info({ event: 'server_started', host: config.host, port: config.port, provider: runtime.provider.name });
@@ -37,7 +37,7 @@ server.requestTimeout = config.gemini.totalTimeoutMs + 60_000;
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {
     logger.info({ event: 'server_stopping', signal });
-    usage.flush().catch(() => {}).then(() => server.close(() => process.exit(0)));
+    Promise.allSettled([usage.flush(), app.locals.monitoring.flush()]).then(() => server.close(() => process.exit(0)));
     setTimeout(() => process.exit(1), 10_000).unref();
   });
 }

@@ -34,3 +34,60 @@
 .debug-status{font-size:11px;font-weight:600;margin:0}
 .container-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:18px;margin:22px 0}.container-card{padding:24px;min-width:0}.container-card h2{font-size:15px;overflow-wrap:anywhere;margin:0 0 14px}.container-card dl{margin-top:20px;line-height:1.8}.container-events{background:#17261f;color:#d5e6cf;border-radius:8px;padding:18px;max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/1.7 Consolas,monospace}
 @media(max-width:600px){.sidebar nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.nav-link{min-width:0;gap:8px;padding:10px;border-radius:6px}.container-card .debug-facts{grid-template-columns:70px minmax(0,1fr)}}
+
+/* Users graphs, deletion, and API monitoring ranges */
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.status-group{display:inline-flex;gap:8px;flex-wrap:wrap}
+.view-switch{display:inline-flex;border:1px solid var(--line);border-radius:7px;background:#fff;padding:2px;gap:2px;flex-shrink:0}
+.view-switch button{border:0;background:none;border-radius:5px;padding:5px 11px;font-size:10px;font-weight:600;color:#7c8a72;cursor:pointer}
+.view-switch button[aria-pressed="true"]{background:var(--green);color:#fff}
+.view-switch button:hover:not([aria-pressed="true"]){background:#f0f5e9}
+.source-switch{margin:-8px 0 20px}
+.users-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin-bottom:24px}
+.users-charts .wide-chart{grid-column:1/-1}
+.day-chart{gap:3px}
+.day-chart .bar-column{gap:0}
+.bar-seg{border-radius:0;min-height:0}
+.bar-seg:first-child{border-radius:2px 2px 0 0}
+.bar-pair{height:100%;flex:1;display:flex;align-items:flex-end;gap:1px;min-width:2px}
+.bar-pair>div{flex:1;border-radius:2px 2px 0 0;min-height:0}
+.legend-visits,.seg-visits{background:#92af75}
+.legend-analyses,.seg-analyses{background:#1e483b}
+.legend-refetches,.seg-refetches{background:#c9d99a}
+.legend-downloads,.seg-downloads{background:#d6a48b}
+.legend-active,.seg-active{background:#1e483b}
+.legend-new,.seg-new{background:#c9d99a}
+.legend-app,.seg-app{background:#1e483b}
+.legend-qr,.seg-qr{background:#c9d99a}
+.split-chart{display:flex;flex-direction:column;gap:17px;margin-top:22px}
+.split-row{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;align-items:center;font-size:10px;color:#7c8a72}
+.split-bar{display:flex;height:22px;border-radius:5px;overflow:hidden;background:#eef1e9}
+.split-bar>div{display:flex;align-items:center;padding:0 8px;font-size:9px;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden}
+.split-bar .seg-app{color:#fff}
+.split-bar .seg-qr{color:#41552f}
+.split-empty{font-size:10px;color:#9aa38d}
+.user-tools{padding-top:2px}
+.filter-input{height:32px;max-width:240px;font-size:11px}
+.button.danger{background:var(--error);color:#fff}
+.button.danger:hover:not(:disabled){background:#913c2e}
+.button:disabled{opacity:.45;cursor:not-allowed}
+.check-cell{width:18px;padding-right:0}
+.check-cell input{width:15px;height:15px;accent-color:var(--green);margin:0;vertical-align:middle}
+.users-scroll{max-height:560px}
+.users-scroll thead th{position:sticky;top:0;z-index:1}
+tr.selected td{background:#f6f9ef}
+.source-tag{display:inline-block;border-radius:4px;padding:2px 7px;font-size:9px;background:#eef4e4;color:#4f6b3e}
+.source-tag.qr{background:#f4f6dd;color:#6d7130}
+.delete-button{font:600 10px Inter,"Segoe UI",Arial,sans-serif;color:var(--error);background:#fff;border:1px solid #efd9d2;border-radius:5px;padding:4px 10px;cursor:pointer}
+.delete-button:hover:not(:disabled){background:#f9eee6}
+.delete-button:disabled{color:#c9b1aa;cursor:not-allowed}
+.delete-dialog{width:min(480px,94vw)}
+.delete-list{margin:12px 0;padding-left:18px;max-height:260px;overflow:auto;font-size:12px}
+.delete-list li{padding:2px 0}
+.delete-actions{display:flex;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--line)}
+.delete-actions .button{height:36px}
+.chart-card .section-title{flex-wrap:wrap}
+@media(max-width:850px){.users-charts{grid-template-columns:1fr}.filter-input{max-width:none;flex:1 1 160px}}
+#usage-body td:nth-child(2){font-family:inherit;font-size:10px;color:var(--ink)}
+#usage-body td.user-id{font-family:Consolas,monospace;font-size:9px;color:#89947e}
+.users-scroll th,.users-scroll td{padding-left:14px;padding-right:14px}

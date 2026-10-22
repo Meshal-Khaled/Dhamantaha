@@ -2,5 +2,15 @@ services:
   infrastructure:
     environment:
       CONTAINER_SNAPSHOT_FILE: /app/operations/containers.json
+      # Users and API monitoring read the QR backend live over the private Docker network.
+      QR_INTERNAL_URL: http://qr:3100
+      QR_INTERNAL_TOKEN_FILE: /run/secrets/qr_internal_token
     volumes:
       - ../operations:/app/operations:ro
+    secrets:
+      - qr_internal_token
+
+secrets:
+  # Shared by the API and the QR backend for the private Users/monitoring link (32+ random characters, mode 0600).
+  qr_internal_token:
+    file: ${QR_INTERNAL_TOKEN_SOURCE:-/home/ubuntu/dhamantaha/secrets/qr-internal.token}

@@ -190,15 +190,48 @@ function uptime(seconds) {
   return `${Math.floor(seconds / 86400)}d ${Math.floor(seconds % 86400 / 3600)}h`;
 }
 
-function renderMonitoring(data) {
-  $('stat-requests').textContent = number(data.totalRequests);
-  $('stat-success').textContent = data.successRate === null ? '—' : `${data.successRate}%`;
-  $('stat-failures').textContent = data.totalRequests ? `${number(data.failedRequests)} unsuccessful · ${number(data.successfulRequests)} successful` : 'Waiting for your first analysis';
-  $('stat-latency').textContent = duration(data.averageDurationMs);
-  $('stat-calls').textContent = number(data.budget.used);
-  $('stat-budget').textContent = data.budget.limit ? `of ${number(data.budget.limit)} calls · UTC day · resets on restart` : 'No daily call cap configured';
-  $('monitor-status').textContent = data.provider.configured ? 'Relay running · provider configured' : 'Relay running · provider setup needed';
-  $('monitor-status').classList.toggle('warning', !data.provider.configured);
+const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const dayTime = (iso) => new Date(iso).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+const RANGES = {
+  hour: { label: 'The last 60 minutes', start: '60 minutes ago', mid: '30 minutes ago', empty: 'No analysis requests in the last hour.' },
+  day: { label: 'The last 24 hours, by hour', start: '24 hours ago', mid: '12 hours ago', empty: 'No analysis requests in the last 24 hours.' },
+  week: { label: 'The last 7 days, in 6-hour blocks', start: '7 days ago', mid: '3½ days ago', empty: 'No analysis requests in the last 7 days.' },
+};
+let monitoringData = null;
+let monitorSource = 'main';
+let chartRange = 'hour';
+
+/** Buckets for the chosen range; the week view adds hours up in blocks of six. */
+function rangeBuckets(view) {
+  if (chartRange === 'hour' || !view.hourly) return view.timeline;
+  if (chartRange === 'day') return view.hourly.slice(-24);
+  const blocks = [];
+  for (let i = 0; i < view.hourly.length; i += 6) {
+    const group = view.hourly.slice(i, i + 6);
+    blocks.push({ timestamp: group[0].timestamp, requests: group.reduce((sum, b) => sum + b.requests, 0), errors: group.reduce((sum, b) => sum + b.errors, 0) });
+  }
+  return blocks;
+}
+
+function renderMonitoring(data = monitoringData) {
+  monitoringData = data;
+  const hasQr = Boolean(data.qr);
+  $('monitor-source').hidden = !hasQr;
+  if (!hasQr) monitorSource = 'main';
+  for (const button of $('monitor-source').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.source === monitorSource));
+  const qrDown = monitorSource === 'qr' && Boolean(data.qr?.unavailable);
+  const view = monitorSource === 'qr' && !qrDown ? data.qr : data;
+  $('stat-requests').textContent = qrDown ? '—' : number(view.totalRequests);
+  $('stat-since').textContent = !qrDown && view.persistent && view.countingSince ? `Since ${new Date(view.countingSince).toLocaleDateString([], { month: 'short', day: 'numeric' })} · kept across restarts` : 'Since the last server start';
+  $('stat-success').textContent = qrDown || view.successRate === null ? '—' : `${view.successRate}%`;
+  $('stat-failures').textContent = qrDown ? 'QR backend unreachable' : view.totalRequests ? `${number(view.failedRequests)} unsuccessful · ${number(view.successfulRequests)} successful` : 'Waiting for your first analysis';
+  $('stat-latency').textContent = qrDown ? '—' : duration(view.averageDurationMs);
+  $('stat-calls').textContent = view.budget ? number(view.budget.used) : '—';
+  $('stat-budget').textContent = !view.budget ? 'Not reported' : view.budget.limit ? `of ${number(view.budget.limit)} calls · UTC day · resets on restart` : 'No daily call cap configured';
+  if (qrDown) $('monitor-status').textContent = 'QR trial backend unreachable';
+  else if (monitorSource === 'qr') $('monitor-status').textContent = 'QR trial backend running';
+  else $('monitor-status').textContent = data.provider.configured ? 'Relay running · provider configured' : 'Relay running · provider setup needed';
+  $('monitor-status').classList.toggle('warning', qrDown || (monitorSource === 'main' && !data.provider.configured));
   $('last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Every 15s`;
   $('instance-provider').textContent = data.provider.provider === 'mock' ? 'Mock (development)' : data.provider.label;
   $('instance-model').textContent = data.provider.model || 'Not set';
@@ -210,15 +243,25 @@ function renderMonitoring(data) {
   $('instance-uptime').textContent = uptime(data.uptimeSeconds);
   $('instance-active').textContent = `${data.activeRequests} / ${data.limits.maxConcurrentAnalyses}`;
   $('instance-memory').textContent = `${Math.round(data.memoryRssBytes / 1024 / 1024)} MB`;
+  $('monitor-persistence').textContent = data.persistent
+    ? `Main API request metrics are saved on The Ring and kept across restarts, counting since ${new Date(data.countingSince).toLocaleString()}. Hourly activity is kept for 7 days.`
+    : 'Request metrics are kept in memory and reset when the service restarts.';
+
+  const range = RANGES[chartRange];
+  for (const button of $('chart-range').querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.range === chartRange));
+  $('chart-range-label').textContent = range.label;
+  $('chart-label-start').textContent = range.start;
+  $('chart-label-mid').textContent = range.mid;
+  const buckets = qrDown ? [] : rangeBuckets(view);
   const chart = $('activity-chart');
   chart.replaceChildren();
-  const max = Math.max(1, ...data.timeline.map((b) => b.requests));
-  let hourTotal = 0;
-  for (const bucket of data.timeline) {
-    hourTotal += bucket.requests;
+  const max = Math.max(1, ...buckets.map((b) => b.requests));
+  let rangeTotal = 0;
+  for (const bucket of buckets) {
+    rangeTotal += bucket.requests;
     const column = document.createElement('div');
     column.className = 'bar-column';
-    column.title = `${new Date(bucket.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · ${bucket.requests} requests, ${bucket.errors} other outcomes`;
+    column.title = `${chartRange === 'hour' ? timeOf(bucket.timestamp) : dayTime(bucket.timestamp)} · ${bucket.requests} requests, ${bucket.errors} other outcomes`;
     for (const [name, count] of [['bar-error', bucket.errors], ['bar-success', bucket.requests - bucket.errors]]) {
       if (!count) continue;
       const segment = document.createElement('div');
@@ -231,12 +274,14 @@ function renderMonitoring(data) {
     }
     chart.append(column);
   }
-  chart.setAttribute('aria-label', `${hourTotal} analysis requests in the last 60 minutes.`);
-  $('chart-empty').hidden = hourTotal > 0;
+  chart.setAttribute('aria-label', `${rangeTotal} analysis requests, ${range.label.toLowerCase()}.`);
+  $('chart-empty').textContent = qrDown ? 'The QR trial backend did not answer.' : range.empty;
+  $('chart-empty').hidden = rangeTotal > 0;
   const body = $('requests-body');
   body.replaceChildren();
-  $('requests-empty').hidden = data.recent.length > 0;
-  for (const request of data.recent) {
+  const recent = qrDown ? [] : view.recent;
+  $('requests-empty').hidden = recent.length > 0;
+  for (const request of recent) {
     const row = document.createElement('tr');
     const values = [new Date(request.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       request.requestId.slice(0, 8), request.status ?? 'Closed', request.processingMethod?.replaceAll('_', ' ') || '—',
@@ -401,24 +446,223 @@ async function refreshMonitoring(knownDebug) {
   finally { $('refresh-monitoring').disabled = false; }
 }
 $('refresh-monitoring').addEventListener('click', () => refreshMonitoring());
+$('monitor-source').addEventListener('click', (event) => {
+  const source = event.target.closest('button')?.dataset.source;
+  if (source && monitoringData) { monitorSource = source; renderMonitoring(); }
+});
+$('chart-range').addEventListener('click', (event) => {
+  const range = event.target.closest('button')?.dataset.range;
+  if (range && monitoringData) { chartRange = range; renderMonitoring(); }
+});
+
+let usersData = null;
+// 'dhamantaha-website-website-1' → 'website'; the full names stay in the Container logs page.
+const containerNames = (names) => names?.length ? names.map((name) => name.replace(/^dhamantaha-/, '').replace(/-website-1$|-1$/, '')).join(' → ') : 'Not recorded';
+const selectedUsers = new Map();
+const userKey = (user) => `${user.source}:${user.user}`;
+const userLabel = (user) => user.name ? `${user.name} (${user.user})` : user.user;
+const shortDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' });
+const QR_STATUS = {
+  live: ['QR trial · live', false],
+  snapshot: ['QR trial · from the host collector', false],
+  stale: ['QR trial · data may be out of date', true],
+  unreachable: ['QR trial backend unreachable', true],
+};
+
+function shownUsers() {
+  const query = $('users-filter').value.trim().toLowerCase();
+  if (!query) return usersData.recentUsers;
+  return usersData.recentUsers.filter((user) => [user.user, user.name, user.team].some((value) => value?.toLowerCase().includes(query)));
+}
+
+/** One bar per day; `series` is [field, className] stacked from the bottom up. */
+function dayBars(target, days, series, describe) {
+  target.replaceChildren();
+  const max = Math.max(1, ...days.map((day) => series.reduce((sum, [field]) => sum + day[field], 0)));
+  for (const day of days) {
+    const column = el('div', 'bar-column');
+    column.title = `${shortDate(day.date)} · ${describe(day)}`;
+    const total = series.reduce((sum, [field]) => sum + day[field], 0);
+    for (const [field, className] of [...series].reverse()) {
+      if (!day[field]) continue;
+      const segment = el('div', `bar-seg ${className}`);
+      segment.style.height = `${day[field] / max * 100}%`;
+      column.append(segment);
+    }
+    if (!total) column.append(el('div', 'bar-empty'));
+    target.append(column);
+  }
+}
+
+function renderUserCharts(usage) {
+  const days = usage.history ?? [];
+  const activity = [['visits', 'seg-visits'], ['analyses', 'seg-analyses'], ['refetches', 'seg-refetches'], ['downloads', 'seg-downloads']];
+  dayBars($('users-daily-chart'), days, activity,
+    (day) => `${day.visits} visits, ${day.analyses} analyses, ${day.refetches} refetches, ${day.downloads} originals`);
+  if (days.length) {
+    $('users-daily-start').textContent = shortDate(days[0].date);
+    $('users-daily-mid').textContent = shortDate(days[Math.floor(days.length / 2)].date);
+    $('users-installs-start').textContent = shortDate(days[0].date);
+  }
+  const anything = days.some((day) => day.visits + day.analyses + day.refetches + day.downloads);
+  $('users-daily-note').textContent = !anything ? 'No daily activity in the last 30 days yet.'
+    : usage.historyStart ? `Daily history from ${shortDate(usage.historyStart)}. Totals above also include activity from before then.` : '';
+  $('users-daily-note').hidden = !$('users-daily-note').textContent;
+
+  const installs = $('users-installs-chart');
+  installs.replaceChildren();
+  const max = Math.max(1, ...days.map((day) => Math.max(day.active, day.newUsers)));
+  for (const day of days) {
+    const pair = el('div', 'bar-pair');
+    pair.title = `${shortDate(day.date)} · ${day.active} active, ${day.newUsers} new`;
+    for (const [value, className] of [[day.active, 'seg-active'], [day.newUsers, 'seg-new']]) {
+      const bar = el('div', className);
+      bar.style.height = value ? `${value / max * 100}%` : '2px';
+      if (!value) bar.style.background = '#e7ecdf';
+      pair.append(bar);
+    }
+    installs.append(pair);
+  }
+
+  const split = $('users-split');
+  split.replaceChildren();
+  const app = usage.sources?.app;
+  const qr = usage.sources?.qr;
+  if (!app) { split.append(el('p', 'split-empty', 'No source breakdown is available.')); return; }
+  for (const [field, name] of [['users', 'Installs'], ['visits', 'Visits'], ['analyses', 'Analyses'], ['refetches', 'Refetches']]) {
+    const a = app[field] ?? 0;
+    const q = qr?.[field] ?? 0;
+    const row = el('div', 'split-row');
+    const bar = el('div', 'split-bar');
+    bar.title = `${name}: ${number(a)} from the app, ${number(q)} from the QR trial`;
+    for (const [value, className] of [[a, 'seg-app'], [q, 'seg-qr']]) {
+      if (!value) continue;
+      const part = el('div', className, number(value));
+      part.style.flex = `${value} 1 0`;
+      bar.append(part);
+    }
+    row.append(el('span', '', name), bar);
+    split.append(row);
+  }
+  if (!qr) split.append(el('p', 'split-empty', 'The QR trial is not linked, so only app users are counted.'));
+}
+
+function updateSelection() {
+  const shown = shownUsers();
+  const count = selectedUsers.size;
+  $('users-selected').textContent = count ? `${count} selected${count > shown.filter((u) => selectedUsers.has(userKey(u))).length ? ', some hidden by the filter' : ''}` : 'Select users to delete them together.';
+  $('users-delete-selected').disabled = !count;
+  $('users-delete-selected').textContent = count ? `Delete ${count} selected` : 'Delete selected';
+  const shownSelected = shown.filter((u) => selectedUsers.has(userKey(u))).length;
+  $('users-select-all').checked = shown.length > 0 && shownSelected === shown.length;
+  $('users-select-all').indeterminate = shownSelected > 0 && shownSelected < shown.length;
+}
+
+function renderUserRows() {
+  const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const shown = shownUsers();
+  $('usage-empty').hidden = shown.length > 0;
+  $('usage-empty').querySelector('strong').textContent = usersData.recentUsers.length ? 'No users match this filter.' : 'No app activity yet.';
+  $('usage-body').replaceChildren(...shown.map((user) => {
+    const row = document.createElement('tr');
+    const key = userKey(user);
+    row.classList.toggle('selected', selectedUsers.has(key));
+    const pick = el('td', 'check-cell');
+    const box = el('input');
+    box.type = 'checkbox';
+    box.checked = selectedUsers.has(key);
+    box.setAttribute('aria-label', `Select ${userLabel(user)}`);
+    box.addEventListener('change', () => {
+      if (box.checked) selectedUsers.set(key, user); else selectedUsers.delete(key);
+      row.classList.toggle('selected', box.checked);
+      updateSelection();
+    });
+    pick.append(box);
+    row.append(pick);
+    const name = el('td', user.name ? '' : 'user-id', user.name || user.user);
+    if (user.name) name.title = `ID ${user.user}`;
+    row.append(name, el('td', '', user.team || '—'));
+    const source = el('td');
+    source.append(el('span', `source-tag${user.source === 'qr' ? ' qr' : ''}`, user.source === 'qr' ? 'QR trial' : 'App'));
+    row.append(source);
+    [number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), containerNames(user.containers), when(user.firstSeen), when(user.lastSeen)]
+      .forEach((value) => row.append(el('td', '', value)));
+    const action = el('td');
+    const remove = el('button', 'delete-button', 'Delete');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Delete ${userLabel(user)}`);
+    remove.addEventListener('click', () => confirmDelete([user]));
+    action.append(remove);
+    row.append(action);
+    return row;
+  }));
+  updateSelection();
+}
 
 function renderUsers(usage) {
+  usersData = usage;
+  // Drop selections for users that no longer exist.
+  const present = new Set(usage.recentUsers.map(userKey));
+  for (const key of selectedUsers.keys()) if (!present.has(key)) selectedUsers.delete(key);
   for (const field of ['refetches', 'visits', 'analyses', 'downloads', 'users']) $('usage-' + field).textContent = number(usage[field]);
   $('usage-active').textContent = `${number(usage.activeLast24h)} installs active in the last 24 hours`;
   $('users-last-updated').textContent = `Updated ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · Every 15s`;
-  $('usage-empty').hidden = usage.recentUsers.length > 0;
-  $('usage-body').replaceChildren(...usage.recentUsers.map((user) => {
-    const row = document.createElement('tr');
-    const when = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-    [user.name || user.user, user.team || '—', number(user.refetches), number(user.visits), number(user.analyses), number(user.downloads), user.containers?.length ? user.containers.join(' → ') : 'Not recorded', when(user.firstSeen), when(user.lastSeen)].forEach((value) => {
-      const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
-    });
-    return row;
-  }));
+  const status = QR_STATUS[usage.qrStatus];
+  $('qr-status').hidden = !status;
+  if (status) {
+    $('qr-status').textContent = usage.qrStatus === 'stale' && usage.qrCollectedAt ? `${status[0]} · collected ${new Date(usage.qrCollectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : status[0];
+    $('qr-status').classList.toggle('warning', status[1]);
+  }
+  $('usage-listed').textContent = usage.users > usage.recentUsers.length ? `LATEST ${usage.recentUsers.length} OF ${number(usage.users)}` : `${number(usage.users)} USERS`;
+  renderUserCharts(usage);
+  renderUserRows();
   $('usage-unattributed').hidden = !usage.unattributedAnalyses;
   $('usage-unattributed').textContent = `${number(usage.unattributedAnalyses)} analysis requests came from clients without an install ID. They are included in the total, with no per-user attribution.`;
   $('users-persistence').textContent = usage.persistent ? 'User counters are saved on The Ring and survive service restarts.' : 'User counters are in memory only because persistent storage is not configured.';
 }
+
+let pendingDelete = [];
+function confirmDelete(users) {
+  pendingDelete = users;
+  $('delete-title').textContent = users.length === 1 ? `Delete ${users[0].name || users[0].user}?` : `Delete ${users.length} users?`;
+  const totals = users.reduce((sum, u) => ({ visits: sum.visits + u.visits, analyses: sum.analyses + u.analyses }), { visits: 0, analyses: 0 });
+  $('delete-sub').textContent = `Totals drop by ${number(totals.visits)} visits and ${number(totals.analyses)} analyses.`;
+  $('delete-list').replaceChildren(...users.slice(0, 50).map((u) => el('li', '', `${userLabel(u)}${u.team ? ` · ${u.team}` : ''} · ${u.source === 'qr' ? 'QR trial' : 'App'}`)));
+  if (users.length > 50) $('delete-list').append(el('li', '', `and ${users.length - 50} more`));
+  $('delete-confirm').disabled = false;
+  $('delete-confirm').textContent = users.length === 1 ? 'Delete user' : `Delete ${users.length} users`;
+  $('delete-dialog').showModal();
+}
+$('delete-cancel').addEventListener('click', () => $('delete-dialog').close());
+$('delete-dialog').addEventListener('click', (event) => { if (event.target === $('delete-dialog')) $('delete-dialog').close(); });
+$('delete-confirm').addEventListener('click', async () => {
+  $('delete-confirm').disabled = true;
+  $('delete-confirm').textContent = 'Deleting…';
+  const deleted = [];
+  const problems = [];
+  try {
+    // The server takes up to 200 users per request.
+    for (let i = 0; i < pendingDelete.length; i += 200) {
+      const batch = pendingDelete.slice(i, i + 200);
+      const result = await api('/users/delete', { method: 'POST', body: { users: batch.map((u) => ({ user: u.user, source: u.source })) } });
+      deleted.push(...result.deleted);
+      problems.push(...result.ambiguous, ...result.notFound);
+    }
+  } catch (err) { problems.push(err.message); }
+  for (const user of pendingDelete) if (deleted.includes(user.user)) selectedUsers.delete(userKey(user));
+  $('delete-dialog').close();
+  toast(problems.length ? `${deleted.length} deleted. Not deleted: ${problems.slice(0, 3).join(', ')}${problems.length > 3 ? '…' : ''}` : `${deleted.length} ${deleted.length === 1 ? 'user' : 'users'} deleted`);
+  await refreshUsers();
+});
+$('users-delete-selected').addEventListener('click', () => { if (selectedUsers.size) confirmDelete([...selectedUsers.values()]); });
+$('users-select-all').addEventListener('change', (event) => {
+  for (const user of shownUsers()) {
+    if (event.target.checked) selectedUsers.set(userKey(user), user); else selectedUsers.delete(userKey(user));
+  }
+  renderUserRows();
+});
+$('users-filter').addEventListener('input', () => { if (usersData) renderUserRows(); });
+
 async function refreshUsers() {
   $('refresh-users').disabled = true;
   try { renderUsers(await api('/users')); }

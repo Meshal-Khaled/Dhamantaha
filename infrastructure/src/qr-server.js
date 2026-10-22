@@ -4,6 +4,8 @@ import { loadConfig } from './config.js';
 import { createLogger } from './logger.js';
 import { createRuntime } from './admin/runtime.js';
 import { createUsage } from './admin/usage.js';
+import { createMonitoring } from './admin/monitoring.js';
+import { qrInternalRouter } from './admin/qrLink.js';
 import { createDailyBudget } from './http/protection.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createQrPacer } from './http/qrPacing.js';
@@ -24,8 +26,11 @@ const runtime = createRuntime(config, { hooks: { onAttempt: attempt => {
   if (attempt.category === 'provider_quota') keyCooldowns[Number(attempt.key.slice(4)) - 1] = Date.now() + 60_000;
   logger.info({ event: 'provider_attempt', ...attempt });
 }, isKeyAvailable: keyAvailable, onKeysUnavailable: unavailable, beforeRetry: () => budget.consume() } });
-const usage = createUsage({ directory: config.admin.stateDirectory, containers: ['dhamantaha-website-website-1', 'dhamantaha-qr-1'], allowProfiles: true });
-const app = createApp({ config, runtime, logger, budget, usage, requestMiddleware: (req, res, next) => {
+const usage = createUsage({ directory: config.admin.stateDirectory, containers: ['dhamantaha-website-website-1', 'dhamantaha-qr-1'], allowProfiles: true, timeZone: config.walletTimeZone });
+const monitoring = createMonitoring({ directory: config.admin.stateDirectory });
+// Read by the API's dashboard over the private Docker network.
+const routes = qrInternalRouter({ token: config.qrLink.token, usage, monitoring, budget });
+const app = createApp({ config, runtime, logger, budget, usage, monitoring, routes, qr: null, requestMiddleware: (req, res, next) => {
   if (req.method !== 'POST' || req.path !== '/v1/receipts/analyze') return next();
   const scope = { attempts: [] };
   const started = Date.now();
@@ -43,6 +48,6 @@ const server = app.listen(config.port, config.host, () => logger.info({ event: '
 server.headersTimeout = 30_000;
 server.requestTimeout = config.gemini.totalTimeoutMs + 60_000;
 for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, () => {
-  usage.flush().finally(() => server.close(() => process.exit(0)));
+  Promise.allSettled([usage.flush(), monitoring.flush()]).then(() => server.close(() => process.exit(0)));
   setTimeout(() => process.exit(1), 10_000).unref();
 });

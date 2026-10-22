@@ -22,12 +22,19 @@ services:
       MAX_CONCURRENT_ANALYSES: "5"
       RATE_LIMIT_PER_MINUTE: "300"
       DAILY_PROVIDER_CALL_LIMIT: "500"
+      # Only the API, holding the same token, may read or delete QR users through /internal.
+      QR_INTERNAL_TOKEN_FILE: /run/secrets/qr_internal_token
     volumes:
       - ../qr-state:/app/state
-    secrets: [gemini_api_key, gemini_api_key_2, gemini_api_key_3]
+    secrets: [gemini_api_key, gemini_api_key_2, gemini_api_key_3, qr_internal_token]
     read_only: true
     tmpfs: [/tmp:size=16m]
     mem_limit: 2048m
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
     restart: unless-stopped
+
+secrets:
+  # Shared by the API and the QR backend for the private Users/monitoring link (32+ random characters, mode 0600).
+  qr_internal_token:
+    file: ${QR_INTERNAL_TOKEN_SOURCE:-/home/ubuntu/dhamantaha/secrets/qr-internal.token}

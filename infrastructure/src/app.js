@@ -5,6 +5,7 @@ import { createRuntime } from './admin/runtime.js';
 import { createMonitoring } from './admin/monitoring.js';
 import { createDebugCapture } from './admin/debugCapture.js';
 import { createUsage } from './admin/usage.js';
+import { qrClient } from './admin/qrLink.js';
 import { usageRouter } from './http/usageRoute.js';
 import swaggerUi from 'swagger-ui-express';
 import { buildOpenApi } from './docs/openapi.js';
@@ -21,14 +22,16 @@ import { withBudget } from './providers/index.js';
  * Builds the infrastructure app. `provider` is Gemini, the mock, a test fake,
  * or null when analysis is not configured.
  */
-export function createApp({ config, provider, logger = createLogger({ level: config.logLevel }), budget, runtime: suppliedRuntime, usage: suppliedUsage, requestMiddleware, debug = createDebugCapture({ enabled: config.admin.debugCapture }) }) {
+export function createApp({ config, provider, logger = createLogger({ level: config.logLevel }), budget, runtime: suppliedRuntime, usage: suppliedUsage, monitoring: suppliedMonitoring, routes, qr = qrClient(config.qrLink), requestMiddleware, debug = createDebugCapture({ enabled: config.admin.debugCapture }) }) {
   const dailyBudget = budget ?? createDailyBudget(config.limits.dailyProviderCallLimit);
   const runtime = suppliedRuntime ?? createRuntime(config, { provider });
-  const monitoring = createMonitoring();
-  const usage = suppliedUsage ?? createUsage({ directory: config.admin.stateDirectory });
+  const monitoring = suppliedMonitoring ?? createMonitoring({ directory: config.admin.stateDirectory });
+  const usage = suppliedUsage ?? createUsage({ directory: config.admin.stateDirectory, timeZone: config.walletTimeZone });
   const budgetedProvider = withBudget(runtime.provider, dailyBudget);
 
   const app = express();
+  // The server flushes these when it stops.
+  Object.assign(app.locals, { monitoring, usage });
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
 
@@ -44,7 +47,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
   app.use('/dashboard/assets', express.static(dashboard, { index: false, cacheControl: false }));
   app.get('/dashboard/monitoring', (req, res) => res.redirect('/dashboard/api-monitoring'));
   app.get(['/dashboard/login', '/dashboard/api-settings', '/dashboard/api-monitoring', '/dashboard/users', '/dashboard/logs'], (req, res) => res.sendFile('index.html', { root: dashboard }));
-  app.use('/admin/api', adminRouter({ config, runtime, monitoring, usage, budget: dailyBudget, debug }));
+  app.use('/admin/api', adminRouter({ config, runtime, monitoring, usage, budget: dailyBudget, debug, qr }));
   app.get('/v1', (req, res) => res.json({ service: 'Dhamantaha receipt API', version: 'v1',
     endpoints: { health: '/v1/health', analyzeReceipt: '/v1/receipts/analyze', explainWarranty: '/v1/warranty/explain', reportUsage: '/v1/usage' }, dashboard: '/dashboard/api-settings' }));
 
@@ -62,6 +65,7 @@ export function createApp({ config, provider, logger = createLogger({ level: con
     });
   });
 
+  if (routes) app.use(routes);
   app.use('/v1', usageRouter({ config, usage }));
   app.use('/v1', receiptsRouter({ config, provider: budgetedProvider, budget: dailyBudget, logger, usage }));
 
