@@ -265,3 +265,35 @@ test('scroll positions survive receipt push/pop without replacing the receipt se
   expect(Math.abs(await page.evaluate(() => window.scrollY - window.__departureScroll))).toBeLessThan(3);
   expect(errors).toEqual([]);
 });
+
+for (const [language, theme, font] of [['en','light','normal'], ['ar','dark','large'], ['ar','light','normal'], ['en','dark','large']]) {
+  test(`Analyst ${language}/${theme}/${font}: periods, chart, currency, merchant groups, keywords and receipts`, async ({page}) => {
+    await page.clock.setFixedTime(new Date('2026-10-22T12:00:00'));
+    await page.setViewportSize({width:320,height:844});
+    const errors = await prepare(page, {language,theme,font});
+    await page.evaluate(async()=>{
+      const db=await new Promise((resolve,reject)=>{const req=indexedDB.open('dhamantaha-receipts',1);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});
+      await new Promise((resolve,reject)=>{const tx=db.transaction('receipts','readwrite');const request=tx.objectStore('receipts').openCursor();request.onsuccess=()=>{const cursor=request.result;if(!cursor)return;const row=cursor.value;const index=Number(row.id.split('-')[1]);row.analysis.receipt={...row.analysis.receipt,merchantName:index===0?'Jarir Marketing Company':index===2?'مكتبة جرير':index===3?'Other Shop':'Jarir Bookstore',purchaseDate:index===0||index===3?'2026-10-22':index===1?'2026-10-21':index===2?'2026-09-30':'2020-01-01',total:index===0?100:index===1?20:index===2?50:index===3?5:100,currency:index===3?'USD':'SAR',branchName:'Hayat Riyadh'};row.analysis.items[0].category='Electronics';cursor.update(row);cursor.continue();};tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);});db.close();
+    });
+    await page.reload();await tab(page,3).click();await settled(page);
+    const analyst=route(page); const periods=analyst.locator('.analyst-periods button');
+    const expected=[100,120,170,170];
+    for(let index=0;index<4;index++){
+      await periods.nth(index).click();
+      await expect(analyst.locator('.spending-total')).toContainText(new Intl.NumberFormat(language==='ar'?'ar-SA':'en-GB').format(expected[index]));
+      await expect(analyst.locator('svg.analyst-chart')).toBeVisible();
+    }
+    await expect(analyst.locator('.analyst-store')).toHaveCount(1);
+    await expect(analyst.locator('.analyst-store > button')).toContainText(language==='ar'?'جرير':'Jarir');
+    const search=analyst.getByRole('searchbox');await search.fill('SKU-NO-MATCH');await expect(analyst.locator('.empty')).toBeVisible();await search.fill('Hayat');await expect(analyst.locator('.analyst-purchase')).toHaveCount(3);await search.fill('');
+    await analyst.locator('.analyst-keyword-picker > summary').click();await analyst.locator('.analyst-keywords button').first().click();await expect(search).not.toHaveValue('');await analyst.locator('.analyst-keywords button').first().click();await expect(search).toHaveValue('');
+    await analyst.locator('.analyst-selects select').nth(1).selectOption('USD');await expect(analyst.locator('.analyst-purchase')).toHaveCount(1);await expect(analyst.locator('.analyst-store')).toContainText('Other Shop');await analyst.locator('.analyst-selects select').nth(1).selectOption('SAR');
+    const groups=analyst.locator('.analyst-aliases');await groups.locator('summary').click();
+    for(const name of ['Jarir Marketing Company','Jarir Bookstore','مكتبة جرير'])await groups.getByLabel(name,{exact:false}).fill('Unified Jarir');
+    await groups.getByRole('button',{name:language==='ar'?'حفظ التجميع':'Save groups',exact:true}).click();await expect(analyst.locator('.analyst-store > button')).toContainText('Unified Jarir');
+    await page.reload();await tab(page,3).click();await settled(page);await expect(route(page).locator('.analyst-store > button')).toContainText('Unified Jarir');
+    await route(page).locator('.analyst-purchase').first().click();await expect(route(page)).toHaveAttribute('data-route','details');
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+}
