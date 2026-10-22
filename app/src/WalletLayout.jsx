@@ -1,8 +1,9 @@
 import ConfirmationDialog from './ConfirmationDialog.jsx';
+import ReceiptLoading from './ReceiptLoading.jsx';
 import { useDisclosureMotion, useTabIndicator } from './useLayoutMotion.js';
 import AnalystScreen from './AnalystScreen.jsx';
 import { Activity, useRef } from 'react';
-import { ArrowLeft, BarChart3, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, LoaderCircle, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Camera, Check, CircleCheck, CirclePlus, Clock3, FileText, FileUp, House, PencilLine, ReceiptText, Settings, ShieldCheck, Trash2 } from 'lucide-react';
 import { HomeScreen, ReceiptsScreen, SettingsScreen, ResultView, ReceiptEditor, translate } from './WalletScreens.jsx';
 import brand from '../resources/app-icon.png';
 import { describeError } from './api.js';
@@ -21,7 +22,8 @@ const toastMessages = {
 function AnalysisStatus({ arabic, elapsed }) {
   const t = translate(arabic);
   return <section className="analysis-status" aria-label={t('Receipt analysis progress', 'تقدم تحليل الفاتورة')}>
-    <ol className="analysis-steps"><li className="complete"><Check size={15} aria-hidden="true" />{t('Saved', 'محفوظة')}</li><li className="current" aria-current="step"><LoaderCircle size={15} className="spin" aria-hidden="true" />{t('Reading', 'جارٍ القراءة')}</li><li><CircleCheck size={15} aria-hidden="true" />{t('Ready', 'جاهزة')}</li></ol>
+    <ReceiptLoading />
+    <ol className="analysis-steps"><li className="complete"><Check size={15} aria-hidden="true" />{t('Saved', 'محفوظة')}</li><li className="current" aria-current="step"><ReceiptText size={15} aria-hidden="true" />{t('Reading', 'جارٍ القراءة')}</li><li><CircleCheck size={15} aria-hidden="true" />{t('Ready', 'جاهزة')}</li></ol>
     <p role="status">{t('Reading your purchase details. Your original is already safe on this phone.', 'نقرأ بيانات الشراء. الفاتورة الأصلية محفوظة على هاتفك.')}</p><span className="elapsed" aria-hidden="true"><Clock3 size={13} />{formatNumber(elapsed, arabic)} {t('seconds', 'ثانية')} · {t('May take up to 85 seconds', 'قد يستغرق حتى ٨٥ ثانية')}</span>
   </section>;
 }
@@ -39,7 +41,7 @@ export default function WalletLayout({ wallet: w }) {
       <header className="head"><button className="brand" disabled={w.busy} onClick={() => w.navigate('home')} aria-label={t('Dhamantaha Home', 'ضمنتها الرئيسية')}><img src={brand} width="46" height="46" alt="" /><strong>{t('Dhamantaha', 'ضمنتها')}</strong></button><span className="private-badge"><ShieldCheck size={15} aria-hidden="true" />{t('On your device', 'على جهازك')}</span></header>
       <main ref={main} className="main navigation-stage" id="main-content" tabIndex={-1} aria-busy={w.busy}>
         {w.storageError && <section className="card error" role="alert"><p>{localizeError(w.storageError, arabic)}</p><button className="link" disabled={w.busy} onClick={w.refreshSaved}>{t('Reload receipts', 'إعادة تحميل الفواتير')}</button></section>}
-        {w.busy && w.phase !== 'analyzing' && <p role="status" className="operation-status"><LoaderCircle className="spin" size={17} aria-hidden="true" />{w.phase === 'explaining' ? t('Reading the warranty terms…', 'جارٍ قراءة شروط الضمان…') : w.phase === 'saving' ? t('Saving on this device…', 'جارٍ الحفظ على جهازك…') : w.phase === 'deleting' ? t('Deleting receipt…', 'جارٍ حذف الفاتورة…') : w.phase === 'photographing' ? t('Opening the camera…', 'جارٍ فتح الكاميرا…') : t('Opening receipt…', 'جارٍ فتح الفاتورة…')}</p>}
+        {w.busy && w.phase !== 'analyzing' && <div role="status" className="operation-status"><ReceiptLoading compact /><span>{w.phase === 'explaining' ? t('Reading the warranty terms…', 'جارٍ قراءة شروط الضمان…') : w.phase === 'saving' ? t('Saving on this device…', 'جارٍ الحفظ على جهازك…') : w.phase === 'deleting' ? t('Deleting receipt…', 'جارٍ حذف الفاتورة…') : w.phase === 'photographing' ? t('Opening the camera…', 'جارٍ فتح الكاميرا…') : t('Opening receipt…', 'جارٍ فتح الفاتورة…')}</span></div>}
         {w.visited.includes('home') && <section className="route-pane" data-route="home" hidden={w.page !== 'home'}><Activity mode={w.page === 'home' ? 'visible' : 'hidden'}><HomeScreen saved={w.saved} arabic={arabic} busy={w.busy} loading={w.loadingSaved} onNavigate={w.navigate} onOpen={w.openReceipt} /></Activity></section>}
         {w.visited.includes('saved') && <section className="route-pane" data-route="saved" hidden={w.page !== 'saved'}><Activity mode={w.page === 'saved' ? 'visible' : 'hidden'}><ReceiptsScreen saved={w.saved} arabic={arabic} busy={w.busy} loading={w.loadingSaved} onOpen={w.openReceipt} onAdd={() => w.navigate('add')} /></Activity></section>}
         {w.visited.includes('analyst') && <section className="route-pane" data-route="analyst" hidden={w.page !== 'analyst'}><Activity mode={w.page === 'analyst' ? 'visible' : 'hidden'}><AnalystScreen saved={w.saved} arabic={arabic} loading={w.loadingSaved} busy={w.busy} onAdd={() => w.navigate('add')} /></Activity></section>}

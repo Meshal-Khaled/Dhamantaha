@@ -4,7 +4,7 @@ import { Camera, Check, ChevronDown, CircleCheck, FileText, Mail, Phone, Plus, R
 import { filterReceiptCards, sortReceiptCards, cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary, warrantyTone } from './wallet-view.js';
 import { fieldLabel, formatDate, formatMoney, formatNumber } from './format.js';
 import AppLockSettings from './AppLockSettings.jsx';
-import { deadlineText, endedPolicy } from './policy-labels.js';
+import { deadlineText, endedPolicy, returnWindowText } from './policy-labels.js';
 import { ItemIdentity, ItemExtras } from './ItemExtras.jsx';
 
 export const translate = (arabic) => (en, ar) => arabic ? ar : en;
@@ -37,6 +37,7 @@ function WarrantyTimer({ entry, arabic, label }) {
 export function ReceiptCard({ card, arabic, disabled, onOpen }) {
   const t = translate(arabic);
   const days = card.lead.warrantyDays;
+  const returns = card.returnEntry ?? card.entries.filter(entry => Number.isFinite(entry.returnDays)).sort((a, b) => b.returnDays - a.returnDays)[0];
   const state = !card.analyzed ? t('Not analyzed', 'غير محللة') : days === null ? t('Warranty unknown', 'الضمان غير معروف') : days < 0 ? t('Expired', 'منتهي') : days <= 30 ? t('Ending soon', 'ينتهي قريبًا') : t('Warranty active', 'ضمان سارٍ');
   const title = card.receipt.merchantName || (card.itemCount === 1 && card.names[0]) || card.record.name;
   const subtitle = !card.analyzed ? t('Not read yet. Open it to analyze.', 'لم تُقرأ بعد. افتحها لتحليلها.')
@@ -47,10 +48,9 @@ export function ReceiptCard({ card, arabic, disabled, onOpen }) {
       <span className="product-title"><strong><bdi>{title}</bdi></strong><small><bdi>{subtitle}</bdi></small></span>
       <span className="product-price"><bdi>{formatMoney(card.total, card.receipt.currency, arabic)}</bdi></span>
     </div>
-    <div className="product-meta"><span>{formatDate(card.receipt.purchaseDate || card.record.createdAt, arabic)}{card.itemCount > 1 && ` · ${itemCountText(card.itemCount, arabic)}`}</span><span className={`coverage-state ${days === null ? 'unknown' : coverageClass(days)}`}><span aria-hidden="true" />{state}</span></div>
+    <div className="product-meta"><span className={`return-countdown ${returns?.returnDays < 0 ? 'period-ended' : ''}`}>{returnWindowText(returns?.returnDays, arabic)}{card.itemCount > 1 && <small> · {itemCountText(card.itemCount, arabic)}</small>}</span><span className={`coverage-state ${days === null ? 'unknown' : coverageClass(days)}`}><span aria-hidden="true" />{state}</span></div>
     {card.analyzed && days !== null && <WarrantyTimer entry={card.lead} arabic={arabic} label={card.coveredCount > 1 ? t('Next warranty end', 'أقرب انتهاء ضمان') : undefined} />}
     {card.analyzed && days === null && <p className="tip">{t('No known warranty deadline. Open the receipt to review or enter its terms.', 'موعد انتهاء الضمان غير معروف. افتح الفاتورة لمراجعة الشروط أو إدخالها.')}</p>}
-    {card.returnEntry && <div className="return-line"><span>{t('Return window', 'مهلة الإرجاع')}</span><Deadline date={card.returnEntry.returnEnd} days={card.returnEntry.returnDays} arabic={arabic} /></div>}
   </button>;
 }
 
