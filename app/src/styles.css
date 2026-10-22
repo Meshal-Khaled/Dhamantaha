@@ -131,6 +131,8 @@ p { margin: 0 0 12px; }
 .policy-details[open] .details-hide { display: inline; }
 .policy-details[open] > summary svg { transform: rotate(180deg); }
 .policy-supporting { padding-top: 6px; }
+.calendar-deadline .link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; font-size: var(--text-sm); }
+.calendar-deadline .tip { font-weight: 400; }
 .policy-text { margin: 12px 0 0; padding: 10px 12px; border-inline-start: 3px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--sub); font-size: var(--text-xs); line-height: 1.9; overflow-wrap: anywhere; }
 .items-heading { margin-top: 20px; }
 .items-hint { margin: -4px 0 10px; }

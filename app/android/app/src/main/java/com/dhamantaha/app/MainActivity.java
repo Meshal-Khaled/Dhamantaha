@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(ReceiptWalletPlugin.class);
         registerPlugin(AppLockPlugin.class);
         registerPlugin(AppChromePlugin.class);
+        registerPlugin(PhoneCalendarPlugin.class);
         super.onCreate(savedInstanceState);
         appLock = new AppLock(this);
         refreshChrome();

@@ -1,4 +1,5 @@
 import NotificationSettings from './NotificationSettings.jsx';
+import CalendarDeadline from './CalendarDeadline.jsx';
 import { useCallback, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { Camera, Check, ChevronDown, CircleCheck, FileText, Mail, Phone, Plus, ReceiptText, Search, ShieldCheck, ShieldX, ShieldQuestion, Undo2 } from 'lucide-react';
 import { filterReceiptCards, sortReceiptCards, cardSearchText, itemName, linePrice, products, receiptCards, receiptPolicy, walletSummary, warrantyTone } from './wallet-view.js';
@@ -21,7 +22,7 @@ function PeriodLine({ date, days, arabic, label, kind }) {
   return <div className={`return-line ${days !== null && days < 0 ? 'period-ended' : ''}`}>{days !== null && days < 0 ? <strong>{endedPolicy(kind, arabic)}</strong> : <><span>{label}</span><Deadline date={date} days={days} arabic={arabic} /></>}</div>;
 }
 
-function WarrantyTimer({ entry, arabic, label }) {
+function WarrantyTimer({ entry, arabic, label, calendarEnabled = false }) {
   const t = translate(arabic);
   const status = warrantyTone(entry.warrantyDays, entry.warrantyProgress);
   if (status === 'ended') return <div className="warranty-expired"><strong>{t('Expired', 'منتهي الصلاحية')}</strong><ShieldX size={19} aria-hidden="true" /></div>;
@@ -30,6 +31,7 @@ function WarrantyTimer({ entry, arabic, label }) {
     <div className="warranty-track" role="progressbar" aria-label={t('Warranty remaining', 'مدة الضمان المتبقية')} aria-valuemin={0} aria-valuemax={100} aria-valuenow={entry.warrantyProgress ?? undefined} aria-valuetext={entry.warrantyProgress === null ? t('Purchase and warranty dates needed', 'يلزم تحديد تاريخ الشراء وانتهاء الضمان') : `${formatNumber(entry.warrantyProgress, arabic)}%`}>
       <span className="warranty-fill" style={{ transform: `scaleX(${(entry.warrantyProgress ?? 0) / 100})` }} />
     </div>
+    {calendarEnabled && <CalendarDeadline date={entry.warrantyEnd} days={entry.warrantyDays} kind="warranty" arabic={arabic} />}
   </div>;
 }
 
@@ -158,14 +160,14 @@ function ItemDetails({ entry, currency, arabic, priceView, open, extras }) {
     <div className="item-body">
       <p className="item-full-name" dir="auto">{name}</p>
       <dl className="facts item-purchase"><dt>{t('Quantity', 'الكمية')}</dt><dd>{quantity === null ? t('Not stated', 'غير مذكورة') : formatNumber(quantity, arabic)}</dd><dt>{t('Item total', 'إجمالي المنتج')}</dt><dd><bdi>{formatMoney(linePrice(item).total, currency, arabic)}</bdi></dd></dl>
-      {entry.warrantyDays === null && !item.warranty?.sourceText && !item.localPolicy?.warranty ? <p className="tip no-warranty">{t('The receipt states no warranty for this item. You can add one with Edit below.', 'لا تذكر الفاتورة ضمانًا لهذا المنتج. يمكنك إضافته من زر التعديل أدناه.')}</p> : <WarrantyTimer entry={entry} arabic={arabic} />}
+      {entry.warrantyDays === null && !item.warranty?.sourceText && !item.localPolicy?.warranty ? <p className="tip no-warranty">{t('The receipt states no warranty for this item. You can add one with Edit below.', 'لا تذكر الفاتورة ضمانًا لهذا المنتج. يمكنك إضافته من زر التعديل أدناه.')}</p> : <WarrantyTimer entry={entry} arabic={arabic} calendarEnabled />}
       {(provider || item.productIdentifier || item.category) && <dl className="facts">
         {provider && <><dt>{t('Warranty provider', 'مزوّد الضمان')}</dt><dd><bdi>{provider}</bdi></dd></>}
         {item.productIdentifier && <><dt>{t('Product code', 'رمز المنتج')}</dt><dd><bdi>{item.productIdentifier}</bdi></dd></>}
         {item.category && <><dt>{t('Category', 'الفئة')}</dt><dd><bdi>{item.category.normalize('NFKC')}</bdi></dd></>}
       </dl>}
       {item.warranty?.sourceText && <details className="full-terms"><summary>{t('Printed warranty terms', 'شروط الضمان المطبوعة')}</summary><p className="policy-text" dir="auto">{item.warranty.sourceText}</p></details>}
-      {entry.returnSource === 'local' && <PeriodLine date={entry.returnEnd} days={entry.returnDays} arabic={arabic} label={t('Return', 'الإرجاع')} kind="return" />}
+      {entry.returnSource === 'local' && <><PeriodLine date={entry.returnEnd} days={entry.returnDays} arabic={arabic} label={t('Return', 'الإرجاع')} kind="return" /><CalendarDeadline date={entry.returnEnd} days={entry.returnDays} kind="return" arabic={arabic} /></>}
       {(item.localPolicy?.warranty || item.localPolicy?.returns) && <p className="tip">{t('Dates use the policy durations you entered. Confirm the store’s terms.', 'التواريخ حسب المدد التي أدخلتها. تحقق من شروط المتجر.')}</p>}
       {printed && printed !== name && <p className="tip printed-line"><span>{t('As printed', 'كما في الفاتورة')}:</span> <bdi dir="auto">{printed}</bdi></p>}
       <ItemExtras entry={entry} arabic={arabic} {...extras} />
@@ -180,7 +182,9 @@ function ReturnPolicy({ receipt, arabic }) {
     <h3><Undo2 size={16} aria-hidden="true" />{t('Return / refund & exchange', 'الاسترجاع والاستبدال')}</h3>
     <div className="policy-deadlines">
     {policy.returnEnd ? <PeriodLine date={policy.returnEnd} days={policy.returnDays} arabic={arabic} label={t('Return for a refund', 'استرجاع المبلغ')} kind="refund" /> : <p className="tip">{t('Refund deadline: unknown', 'موعد الاسترجاع: غير معروف')}</p>}
+    <CalendarDeadline date={policy.returnEnd} days={policy.returnDays} kind="refund" arabic={arabic} />
     {policy.exchangeEnd ? <PeriodLine date={policy.exchangeEnd} days={policy.exchangeDays} arabic={arabic} label={t('Exchange / replacement', 'الاستبدال')} kind="exchange" /> : <p className="tip">{t('Exchange deadline: unknown', 'موعد الاستبدال: غير معروف')}</p>}
+    <CalendarDeadline date={policy.exchangeEnd} days={policy.exchangeDays} kind="exchange" arabic={arabic} />
     </div>
     <details className="policy-details"><summary><span className="details-show">{t('Show details', 'اظهر التفاصيل')}</span><span className="details-hide">{t('Hide details', 'إخفاء التفاصيل')}</span><ChevronDown size={18} aria-hidden="true" /></summary><div className="policy-supporting">
     <p className="tip">{t('Warranty, refund and exchange are separate terms. A warranty does not automatically mean a refund or replacement is allowed. Confirm the printed policy with the store.', 'الضمان والاسترجاع والاستبدال شروط منفصلة. وجود ضمان لا يعني تلقائيًا السماح باسترجاع المبلغ أو الاستبدال. تحقق من الشروط المطبوعة مع المتجر.')}</p>

@@ -60,7 +60,7 @@ function testStorage() {
   run(adb, ['install', '-r', join(root, 'android', 'app', 'build', 'outputs', 'apk', 'androidTest', 'debug', 'app-debug-androidTest.apk')]);
   // Run instrumentation directly: Gradle's connected test task can uninstall the target app afterward.
   const result = spawnSync(adb, ['shell', 'am', 'instrument', '-w', '-e', 'class',
-    'com.dhamantaha.app.ReceiptStoreTest,com.dhamantaha.app.AppLockPreferenceTest', `${APP_ID}.test/androidx.test.runner.AndroidJUnitRunner`], { encoding: 'utf8' });
+    'com.dhamantaha.app.ReceiptStoreTest,com.dhamantaha.app.AppLockPreferenceTest,com.dhamantaha.app.CalendarIntentTest', `${APP_ID}.test/androidx.test.runner.AndroidJUnitRunner`], { encoding: 'utf8' });
   process.stdout.write(result.stdout ?? '');
   process.stderr.write(result.stderr ?? '');
   if (result.status !== 0 || !/OK \(\d+ tests?\)/.test(result.stdout ?? '')) throw new Error('Native storage tests failed.');

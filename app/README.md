@@ -69,6 +69,12 @@ Run `npm test` and `npm run build` for JavaScript checks. With a device connecte
 
 ## Screen transitions, expired warranties and reminders
 
+### Phone calendar
+
+In Android receipt details, **Add to calendar / إضافة إلى التقويم** opens the installed calendar's event editor for a known, unexpired return, exchange or product warranty deadline. Pick the phone calendar (for example **My calendar**), choose an optional reminder there, and save or cancel. The draft uses a generic title and a 09:00–09:30 phone-local time on the deadline date. No merchant, product, price, receipt attachment or credentials are copied. Calendar-account sync follows the calendar you choose; Dhamantaha uses no Google Calendar API or account connection and requests no calendar read/write permission.
+
+The native Capacitor API is `PhoneCalendar.openEvent({ date: 'YYYY-MM-DD', title })`, implemented in `PhoneCalendarPlugin.java`. It returns `{ opened: true }` when Android opens the editor/chooser, which does not establish that the user saved an event. Invalid/past dates and unavailable calendar apps produce errors. Reminders are configured in the calendar editor, separately from wallet notifications. Calendar events are independent copies: later wallet edits/deletions do not update them, and repeating the action may create duplicates. Calendar buttons are unavailable in the browser preview. `npm run android:test-storage` includes native calendar-intent date, title and routing validation alongside storage tests.
+
 Screen changes use a short fade/slide, disabled by the phone/browser's reduced-motion preference. Expired warranties show **Expired** with a shield-X icon and no progress bar in receipt cards and product details; unknown dates stay unknown.
 
 In the installed Android app, **Settings → Notifications** enables private local reminders for known warranty, refund and exchange deadlines. Choose one or seven days before the deadline. Android notification permission is requested only when you enable reminders or explicitly retry permission. Browser previews show an availability explanation instead of a pretend switch.
