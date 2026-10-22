@@ -178,10 +178,14 @@ function ReturnPolicy({ receipt, arabic }) {
   const policy = receiptPolicy(receipt);
   return <div className="policy">
     <h3><Undo2 size={16} aria-hidden="true" />{t('Return / refund & exchange', 'الاسترجاع والاستبدال')}</h3>
-    <p className="tip">{t('Warranty, refund and exchange are separate terms. A warranty does not automatically mean a refund or replacement is allowed. Confirm the printed policy with the store.', 'الضمان والاسترجاع والاستبدال شروط منفصلة. وجود ضمان لا يعني تلقائيًا السماح باسترجاع المبلغ أو الاستبدال. تحقق من الشروط المطبوعة مع المتجر.')}</p>
+    <div className="policy-deadlines">
     {policy.returnEnd ? <PeriodLine date={policy.returnEnd} days={policy.returnDays} arabic={arabic} label={t('Return for a refund', 'استرجاع المبلغ')} kind="refund" /> : <p className="tip">{t('Refund deadline: unknown', 'موعد الاسترجاع: غير معروف')}</p>}
     {policy.exchangeEnd ? <PeriodLine date={policy.exchangeEnd} days={policy.exchangeDays} arabic={arabic} label={t('Exchange / replacement', 'الاستبدال')} kind="exchange" /> : <p className="tip">{t('Exchange deadline: unknown', 'موعد الاستبدال: غير معروف')}</p>}
+    </div>
+    <details className="policy-details"><summary><span className="details-show">{t('Show details', 'اظهر التفاصيل')}</span><span className="details-hide">{t('Hide details', 'إخفاء التفاصيل')}</span><ChevronDown size={18} aria-hidden="true" /></summary><div className="policy-supporting">
+    <p className="tip">{t('Warranty, refund and exchange are separate terms. A warranty does not automatically mean a refund or replacement is allowed. Confirm the printed policy with the store.', 'الضمان والاسترجاع والاستبدال شروط منفصلة. وجود ضمان لا يعني تلقائيًا السماح باسترجاع المبلغ أو الاستبدال. تحقق من الشروط المطبوعة مع المتجر.')}</p>
     {policy.text ? <p className="policy-text" dir="auto">{policy.text}</p> : <p className="tip">{t('No printed policy available. Review the original or ask the store; unknown does not mean unavailable.', 'لا توجد سياسة مطبوعة مسجلة. راجع الأصل أو اسأل المتجر؛ غير معروف لا يعني غير متاح.')}</p>}
+    </div></details>
   </div>;
 }
 

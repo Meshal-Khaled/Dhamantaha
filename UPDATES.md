@@ -397,3 +397,10 @@ Tool: Codex — Developer: Meshal Khaled
 **Update:** Replaced the Android wallet's small operation/analysis spinner with an animated receipt scan and staggered dots, retaining accessible status messages and disabling movement for reduced-motion preferences. Replaced receipt-card purchase dates with remaining return days and للاسترجاع based exclusively on saved receipt/item policies; unknown and ended periods are explicit, and purchase dates remain in receipt details. Removed the duplicate card return row. Added a policy countdown regression covering real date arithmetic, one/two/three days, last day, expired and unknown states. All 67 unit tests, 14 browser navigation scenarios, production build and Android APK build passed. Installed with adb install -r; observed the animated loader during a real native receipt open and verified all six existing receipts and return labels on the Android 16 phone. The newest receipt has no saved return duration, so unknown is shown without inventing a three-day policy. Captured the updated device screen; no receipt data edited or analyzed.
 
 Tool: Codex — Developer: Meshal Khaled
+
+
+## 2026-10-22 16:23 (Asia/Riyadh)
+
+**Update:** Made receipt-detail return/refund and exchange countdowns larger and bold (weight 800) in highlighted rows. Moved the explanatory paragraph and original policy text into a keyboard-accessible, collapsed-by-default disclosure labeled اظهر التفاصيل / Show details, changing to Hide details when open. Retained existing date calculations and disclosure motion/reduced-motion behavior. All 67 unit tests, production build and Android APK build passed. Installed with adb install -r and verified both actual countdowns (3 return days / 7 exchange days), computed font size/weight, default collapse, expansion and collapse, and no JavaScript errors on the connected phone. All six saved receipts remain; captured the updated screen. No receipt edits, analysis calls or production deployment.
+
+Tool: Codex — Developer: Meshal Khaled

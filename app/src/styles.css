@@ -119,6 +119,18 @@ p { margin: 0 0 12px; }
 .policy h3 svg { color: var(--green); flex: none; }
 .policy .return-line { margin-top: 10px; }
 .policy .tip { margin-top: 8px; }
+.policy-deadlines { display: grid; gap: 10px; margin-top: 16px; }
+.policy-deadlines .return-line, .policy-deadlines > .tip { margin: 0; padding: 15px; border: 1px solid var(--line); border-radius: 14px; background: var(--pale); color: var(--text); font-size: var(--text-base); font-weight: 600; }
+.policy-deadlines .return-line strong { color: var(--green); font-size: var(--text-lg); font-weight: 800; line-height: 1.5; }
+.policy-deadlines .period-ended strong { color: var(--sub); }
+.policy-details { margin-top: 14px; }
+.policy-details > summary { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--green); background: var(--white); font-size: var(--text-sm); font-weight: 700; cursor: pointer; list-style: none; }
+.policy-details > summary::-webkit-details-marker { display: none; }
+.policy-details > summary:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+.policy-details .details-hide, .policy-details[open] .details-show { display: none; }
+.policy-details[open] .details-hide { display: inline; }
+.policy-details[open] > summary svg { transform: rotate(180deg); }
+.policy-supporting { padding-top: 6px; }
 .policy-text { margin: 12px 0 0; padding: 10px 12px; border-inline-start: 3px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--sub); font-size: var(--text-xs); line-height: 1.9; overflow-wrap: anywhere; }
 .items-heading { margin-top: 20px; }
 .items-hint { margin: -4px 0 10px; }
