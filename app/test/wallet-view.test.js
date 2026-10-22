@@ -150,3 +150,20 @@ test('editing a name keeps the printed line, and editing a total re-derives the 
   const repriced = editAnalysis(previous, { ...values, price: '60' });
   assert.deepEqual(linePrice(repriced.items[0]), { quantity: 2, unitPrice: 30, total: 60 });
 });
+
+test('receipt filters handle mixed coverage, last-day returns, and unknown policies; code search and sorting stay receipt-based', async () => {
+  const { filterReceiptCards, sortReceiptCards, cardSearchText } = await import('../src/wallet-view.js');
+  const cards = receiptCards([
+    { id: 'mixed', name: 'shop.pdf', createdAt: 100, analysis: { receipt: { merchantName: 'Shop', purchaseDate: '2026-10-01', returnPolicy: { returnDurationValue: 20, returnDurationUnit: 'days' } }, items: [{ productIdentifier: 'SKU-123', warranty: { expirationDate: '2026-12-01' } }, { warranty: { expirationDate: '2026-10-01' } }] } },
+    { id: 'unread', name: 'new.pdf', createdAt: 99 },
+    { id: 'unknown', name: 'unknown.pdf', createdAt: 101, analysis: { items: [{}] } },
+  ], new Date('2026-10-21T12:00:00'));
+  assert.deepEqual(filterReceiptCards(cards, 'active').map(c => c.record.id), ['mixed']);
+  assert.deepEqual(filterReceiptCards(cards, 'expired').map(c => c.record.id), ['mixed']);
+  assert.deepEqual(filterReceiptCards(cards, 'soon').map(c => c.record.id), ['mixed']);
+  assert.deepEqual(filterReceiptCards(cards, 'unread').map(c => c.record.id), ['unread']);
+  assert.ok(cardSearchText(cards[0]).includes('sku-123'));
+  assert.deepEqual(sortReceiptCards(cards, 'newest').map(c => c.record.id), ['unknown', 'mixed', 'unread']);
+  assert.equal(sortReceiptCards(cards, 'deadline')[0].record.id, 'mixed');
+  assert.equal(cards[0].record.id, 'mixed');
+});

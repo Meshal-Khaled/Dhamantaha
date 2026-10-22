@@ -17,3 +17,7 @@ android/app/src/main/assets/capacitor.plugins.json
 android/capacitor-cordova-android-plugins/
 *.apk
 *.log
+
+# Navigation browser test artifacts
+playwright-report/
+test-results/

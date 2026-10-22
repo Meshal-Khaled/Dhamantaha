@@ -116,7 +116,7 @@ export function receiptCards(records, today = new Date()) {
 /** Everything the search box matches: store, branch, file name, and every item's names. */
 export function cardSearchText(card) {
   const items = card.record.analysis?.items ?? [];
-  return [card.receipt.merchantName, card.receipt.branchName, card.record.name, ...items.flatMap((item) => [itemName(item), item.description, item.category])]
+  return [card.receipt.merchantName, card.receipt.branchName, card.record.name, ...items.flatMap((item) => [itemName(item), item.description, item.category, item.productIdentifier])]
     .filter(Boolean).join(' ').normalize('NFKC').toLocaleLowerCase();
 }
 
@@ -147,4 +147,20 @@ export function editAnalysis(previous, values, index = 0) {
   body.items[index] = { ...existing, displayName: values.description.trim() || null, totalPrice: price, ...(priceChanged ? { unitPrice: null } : {}), localPolicy: { warranty: policy(values.warrantyAmount, values.warrantyUnit), returns: policy(values.returnAmount, values.returnUnit) } };
   body.locallyEdited = true;
   return body;
+}
+
+/** Filters apply to receipts: a mixed receipt may contain both active and expired products. */
+export function filterReceiptCards(cards, filter) {
+  return cards.filter(card => filter === 'unread' ? !card.analyzed
+    : filter === 'active' ? card.coveredCount > 0
+    : filter === 'soon' ? card.nextDeadline !== null && card.nextDeadline <= 30
+    : filter === 'expired' ? card.entries.some(entry => entry.warrantyDays !== null && entry.warrantyDays < 0)
+    : true);
+}
+
+export function sortReceiptCards(cards, sort) {
+  return [...cards].sort((a, b) => sort === 'deadline'
+    ? (a.nextDeadline ?? Infinity) - (b.nextDeadline ?? Infinity) || Number(b.record.createdAt) - Number(a.record.createdAt)
+    : sort === 'store' ? (a.receipt.merchantName || a.record.name).localeCompare(b.receipt.merchantName || b.record.name)
+    : Number(b.record.createdAt) - Number(a.record.createdAt));
 }

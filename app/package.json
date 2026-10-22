@@ -12,12 +12,14 @@
     "android:build": "node scripts/android.js build",
     "android:install": "node scripts/android.js install",
     "android:logs": "node scripts/android.js logs",
-    "android:test-storage": "node scripts/android.js storage-test"
+    "android:test-storage": "node scripts/android.js storage-test",
+    "test:navigation": "playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
     "@capacitor/camera": "^8.2.6",
     "@capacitor/core": "^8.5.3",
+    "@capacitor/local-notifications": "8.3.1",
     "@heroicons/react": "^2.2.0",
     "lucide-react": "1.60.0",
     "react": "^19.3.1",
@@ -25,6 +27,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
+    "@playwright/test": "1.64.1",
     "@vitejs/plugin-react": "^6.1.2",
     "vite": "^8.3.4"
   }
